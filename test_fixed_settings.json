@@ -1,0 +1,48 @@
+{
+  "display": {
+    "display_type": "pixel_grid",
+    "grid_width": 120,
+    "grid_height": 68,
+    "square_size": 16,
+    "display_scale": 0.5,
+    "fps": 60
+  },
+  "transition": {
+    "transition_speed": 10.0,
+    "text_change_interval": 1500,
+    "blank_time_between_transitions": 0,
+    "shuffle_text_order": true
+  },
+  "overlay": {
+    "overlay_enabled": true,
+    "overlay_effect": "outline",
+    "ghost_chance": 0.15,
+    "ghost_decay": 0.985,
+    "ghost_min_intensity": 0.1,
+    "ghost_spawn_chance": 0.05,
+    "flicker_chance": 0.0,
+    "flicker_intensity": 0.2,
+    "color_scheme": "classic",
+    "color_transition_mode": "smooth",
+    "color_shift_speed": 0.005,
+    "snap_duration": 120
+  },
+  "text_rendering": {
+    "char_width": 6,
+    "char_height": 8,
+    "spacing_x": 1,
+    "spacing_y": 1
+  },
+  "file_monitoring": {
+    "file_check_interval": 60
+  },
+  "debug": {
+    "debug_output_interval": 300
+  },
+  "ghost_tuning": {
+    "spawn_intensity_base": 0.9,
+    "spawn_intensity_multiplier": 1.0,
+    "accumulation_intensity": 0.8,
+    "max_ghost_intensity": 1.0
+  }
+}

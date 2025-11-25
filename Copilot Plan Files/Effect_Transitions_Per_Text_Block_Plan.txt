@@ -1,0 +1,339 @@
+================================================================================
+PLAN: ADD PER-TEXT-BLOCK VISUAL EFFECT TRANSITIONS
+================================================================================
+
+OVERVIEW:
+Add checkboxes to the Transitions tab allowing visual effects (color scheme, 
+transition mode, ghost effects, flicker effects, and transition speed) to 
+automatically change when text blocks change. Each option includes a sub-choice 
+for random or sequential cycling through available values, with configurable 
+min/max ranges for numeric parameters.
+
+================================================================================
+IMPLEMENTATION STEPS
+================================================================================
+
+STEP 1: Extend TransitionSettings in config/settings.py
+------------------------------------------------------------------------
+Add the following fields to the TransitionSettings dataclass:
+
+Boolean Enable Flags:
+  - transition_color_scheme: bool = False
+  - transition_color_mode: bool = False
+  - transition_ghost_params: bool = False
+  - transition_flicker_params: bool = False
+  - transition_speed_variation: bool = False
+
+Order Mode Fields (for each effect):
+  - color_scheme_order: str = "random"  # "random" or "sequential"
+  - color_mode_order: str = "random"
+  - ghost_params_order: str = "random"
+  - flicker_params_order: str = "random"
+  - speed_order: str = "random"
+
+Min/Max Range Fields:
+  Speed Variation:
+    - speed_min: float = 1.0
+    - speed_max: float = 15.0
+  
+  Ghost Parameters:
+    - ghost_chance_min: float = 0.05
+    - ghost_chance_max: float = 0.3
+    - ghost_decay_min: float = 0.985
+    - ghost_decay_max: float = 0.998
+  
+  Flicker Parameters:
+    - flicker_chance_min: float = 0.0
+    - flicker_chance_max: float = 0.1
+    - flicker_intensity_min: float = 0.1
+    - flicker_intensity_max: float = 0.3
+
+Update to_dict() and from_dict() methods to handle all new fields with 
+backward compatibility for existing settings files.
+
+------------------------------------------------------------------------
+
+STEP 2: Update Transitions Tab GUI in settings_gui.py
+------------------------------------------------------------------------
+Modify _create_transitions_tab() to add collapsible LabelFrame widgets for 
+each effect group. Use the existing widget binding pattern.
+
+Add 5 LabelFrame sections (one for each effect type):
+
+1. COLOR SCHEME TRANSITIONS
+   - Checkbox: "Also transition color scheme when text changes"
+   - Radio buttons: "Random" / "Sequential"
+   - Info label: "Cycles through all 23 available color schemes"
+
+2. TRANSITION MODE TRANSITIONS
+   - Checkbox: "Also transition color transition mode when text changes"
+   - Radio buttons: "Random" / "Sequential"
+   - Info label: "Cycles through: smooth, snap, mixed, spread_horizontal, spread_vertical"
+
+3. GHOST EFFECT TRANSITIONS
+   - Checkbox: "Also transition ghost effects when text changes"
+   - Radio buttons: "Random" / "Sequential"
+   - Scale: Ghost Chance Min (0.0-1.0)
+   - Scale: Ghost Chance Max (0.0-1.0)
+   - Scale: Ghost Decay Min (0.9-1.0)
+   - Scale: Ghost Decay Max (0.9-1.0)
+   - Info label: "Randomizes ghost parameters within specified ranges"
+
+4. FLICKER EFFECT TRANSITIONS
+   - Checkbox: "Also transition flicker effects when text changes"
+   - Radio buttons: "Random" / "Sequential"
+   - Scale: Flicker Chance Min (0.0-0.2)
+   - Scale: Flicker Chance Max (0.0-0.2)
+   - Scale: Flicker Intensity Min (0.0-1.0)
+   - Scale: Flicker Intensity Max (0.0-1.0)
+   - Info label: "Randomizes flicker parameters within specified ranges"
+
+5. SPEED VARIATION
+   - Checkbox: "Also vary transition speed when text changes"
+   - Radio buttons: "Random" / "Sequential"
+   - Scale: Speed Min (0.1-50.0 px/frame)
+   - Scale: Speed Max (0.1-50.0 px/frame)
+   - Info label: "Randomizes transition speed within specified range"
+
+Bind all widgets using existing _bind_widget() pattern with appropriate 
+settings paths like "transition.transition_color_scheme", etc.
+
+------------------------------------------------------------------------
+
+STEP 3: Initialize Cycling State in transition_manager.py __init__()
+------------------------------------------------------------------------
+Add initialization for sequential cycling:
+
+Color Scheme Cycling:
+  - self.color_scheme_order_indices = []
+  - self.current_color_scheme_position = 0
+  - self._last_color_scheme_setting = None
+
+Transition Mode Cycling:
+  - self.transition_mode_order_indices = []
+  - self.current_transition_mode_position = 0
+  - self._last_transition_mode_setting = None
+
+Create methods to initialize and manage these lists:
+  - _initialize_color_scheme_order()
+  - _initialize_transition_mode_order()
+  - _update_color_scheme_order_for_mode_change()
+  - _update_transition_mode_order_for_mode_change()
+
+Follow the same pattern as _initialize_text_order() and 
+_update_text_order_for_shuffle_change().
+
+For sequential mode:
+  - Create list of all enum values
+  - Shuffle if order mode is "random", otherwise keep in defined order
+  - When reaching end of list, reshuffle (if random) before restarting
+
+------------------------------------------------------------------------
+
+STEP 4: Implement Transition Logic in transition_manager.py
+------------------------------------------------------------------------
+Modify _handle_text_change() to apply effect transitions before starting 
+the text transition.
+
+Add new method: _apply_effect_transitions()
+
+Logic for each effect type:
+
+IF transition_color_scheme is enabled:
+  IF color_scheme_order == "sequential":
+    - Get next color scheme from order list
+    - Increment position, reshuffle on cycle completion
+  ELSE (random):
+    - Pick random ColorScheme enum value
+  - Apply via displayer.set_ghost_color_scheme()
+
+IF transition_color_mode is enabled:
+  IF color_mode_order == "sequential":
+    - Get next transition mode from order list
+    - Increment position, reshuffle on cycle completion
+  ELSE (random):
+    - Pick random TransitionMode enum value
+  - Apply via displayer.set_color_transition_mode()
+
+IF transition_ghost_params is enabled:
+  - Generate random ghost_chance between ghost_chance_min and ghost_chance_max
+  - Generate random ghost_decay between ghost_decay_min and ghost_decay_max
+  - Apply via displayer.configure_overlay_effects()
+
+IF transition_flicker_params is enabled:
+  - Generate random flicker_chance between flicker_chance_min and flicker_chance_max
+  - Generate random flicker_intensity between flicker_intensity_min and flicker_intensity_max
+  - Apply via displayer.configure_overlay_effects()
+
+IF transition_speed_variation is enabled:
+  - Generate random speed between speed_min and speed_max
+  - Apply via displayer.set_transition_speed()
+
+Call _apply_effect_transitions() at the start of _handle_text_change(), 
+before transitioning to the next text block.
+
+Use random.uniform() for generating random floats within ranges.
+Use random.choice() for picking random enum values.
+
+------------------------------------------------------------------------
+
+STEP 5: Add Advanced Tab Controls in settings_gui.py
+------------------------------------------------------------------------
+Modify _create_advanced_tab() to add an "Effect Transition Ranges" section.
+
+Add LabelFrame: "Effect Transition Parameter Ranges"
+
+Contents:
+  - Label: "Configure min/max bounds for random effect transitions"
+  
+  Ghost Parameters Section:
+    - Scale: Ghost Chance Min (0.0-1.0, default: 0.05)
+    - Scale: Ghost Chance Max (0.0-1.0, default: 0.3)
+    - Scale: Ghost Decay Min (0.9-1.0, default: 0.985)
+    - Scale: Ghost Decay Max (0.9-1.0, default: 0.998)
+  
+  Flicker Parameters Section:
+    - Scale: Flicker Chance Min (0.0-0.2, default: 0.0)
+    - Scale: Flicker Chance Max (0.0-0.2, default: 0.1)
+    - Scale: Flicker Intensity Min (0.0-1.0, default: 0.1)
+    - Scale: Flicker Intensity Max (0.0-1.0, default: 0.3)
+  
+  Speed Variation Section:
+    - Scale: Speed Min (0.1-50.0, default: 1.0)
+    - Scale: Speed Max (0.1-50.0, default: 15.0)
+
+Bind all widgets to appropriate transition settings paths.
+
+------------------------------------------------------------------------
+
+STEP 6: Update JSON Serialization in config/settings.py
+------------------------------------------------------------------------
+Update TransitionSettings methods:
+
+to_dict():
+  Add all new fields to the dictionary output:
+    - All boolean enable flags
+    - All order mode strings
+    - All min/max range values
+
+from_dict():
+  Add handling for all new fields with defaults:
+    - Check if keys exist in dictionary
+    - Use default values if keys missing (backward compatibility)
+    - Validate order mode strings are "random" or "sequential"
+    - Validate min/max ranges are sensible (min < max)
+
+validate():
+  Add validation checks:
+    - Ensure all min values < corresponding max values
+    - Ensure order mode strings are valid
+    - Clamp numeric ranges to valid bounds
+
+------------------------------------------------------------------------
+
+================================================================================
+FURTHER CONSIDERATIONS
+================================================================================
+
+1. HOT-RELOAD BEHAVIOR
+------------------------------------------------------------------------
+When enabling a transition option mid-stream via settings GUI, wait until 
+next scheduled text change to apply (per user preference for "waiting").
+
+Add periodic check similar to _check_shuffle_setting_changes():
+  - Check every N frames if transition options have been toggled
+  - If toggled ON mid-stream, initialize order lists for sequential mode
+  - If toggled OFF, no action needed
+  - Store last-known state of each transition boolean
+
+------------------------------------------------------------------------
+
+2. SEQUENTIAL ORDER INITIALIZATION
+------------------------------------------------------------------------
+On first enable of sequential mode, start from index 0 of the order list 
+rather than trying to match current effect value's position. This is simpler 
+and more predictable.
+
+When mode changes from random to sequential mid-stream:
+  - Create/reshuffle order list
+  - Reset position to 0
+  - Wait for next text change to apply
+
+------------------------------------------------------------------------
+
+3. VISUAL FEEDBACK IN GUI
+------------------------------------------------------------------------
+Optional enhancement: Show which effects are currently active/transitioning.
+
+Could add status labels in Transitions tab:
+  - "Current Color Scheme: [scheme_name]"
+  - "Current Transition Mode: [mode_name]"
+  - "Current Speed: [X.X px/frame]"
+
+Update these labels when settings are loaded or when user saves.
+This helps during live streams to see what's changing at a glance.
+
+Consider adding this in a future iteration if deemed useful.
+
+------------------------------------------------------------------------
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+Before going live with this feature, test:
+
+□ Enable/disable each transition option independently
+□ Verify random mode generates different values each text change
+□ Verify sequential mode cycles through all options
+□ Verify sequential mode reshuffles on cycle completion
+□ Test with shuffle text order enabled/disabled
+□ Verify min/max ranges are respected
+□ Test edge cases (min == max, extreme values)
+□ Verify settings save/load correctly to JSON
+□ Test hot-reload: toggle options while display is running
+□ Verify backward compatibility with old settings files
+□ Test with all transitions enabled simultaneously
+□ Verify Advanced tab min/max controls work correctly
+□ Check that changes wait for next text transition (not immediate)
+□ Verify GUI widgets update correctly when loading saved settings
+
+================================================================================
+FILES TO MODIFY
+================================================================================
+
+1. config/settings.py
+   - TransitionSettings dataclass
+   - to_dict() and from_dict() methods
+   - validate() method
+
+2. settings_gui.py
+   - _create_transitions_tab() method
+   - _create_advanced_tab() method
+   - Widget binding for new controls
+
+3. transition_manager.py
+   - __init__() - initialize cycling state
+   - _handle_text_change() - call new transition logic
+   - _apply_effect_transitions() - new method
+   - _initialize_color_scheme_order() - new method
+   - _initialize_transition_mode_order() - new method
+   - _update_color_scheme_order_for_mode_change() - new method
+   - _update_transition_mode_order_for_mode_change() - new method
+   - _check_effect_transition_setting_changes() - new method
+
+4. config/user_settings.json (auto-generated, no manual edits needed)
+
+================================================================================
+ESTIMATED COMPLEXITY
+================================================================================
+
+Low-Medium complexity:
+  - Follows existing patterns (shuffle text order, settings GUI structure)
+  - Well-defined requirements
+  - No new dependencies needed
+  - Leverages existing enum system
+
+Time estimate: 2-3 hours for full implementation and testing
+
+================================================================================

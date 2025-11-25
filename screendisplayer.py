@@ -1,0 +1,447 @@
+import pygame
+import sys
+import random
+import time
+from typing import List, Tuple, Dict, Optional, Union
+from letter_dictionary import letter_dict
+from screen_overlay import ScreenOverlay
+from color_schemes import list_color_schemes
+from config.enums import DisplayType, ColorScheme, TransitionMode
+from config.settings import Settings
+
+class ScreenDisplayer:
+    def __init__(self, grid_width: int = 20, grid_height: int = 10, square_size: int = 30, 
+                 display_scale: float = 1.0, display_type: DisplayType = DisplayType.PIXEL_GRID,
+                 settings: Optional[Settings] = None):
+        print(f"Initializing ScreenDisplayer: {grid_width}x{grid_height}, square_size={square_size}, scale={display_scale}, type={display_type.name}")
+        
+        # Store settings reference, create default if none provided
+        self.settings = settings if settings is not None else Settings.create_default()
+        
+        # Store display type for future extensibility
+        self.display_type = display_type
+        
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+        self.square_size = square_size
+        self.display_scale = display_scale
+        
+        # Logical dimensions (what the math thinks)
+        self.logical_width = grid_width * square_size
+        self.logical_height = grid_height * square_size
+        
+        # Physical screen dimensions (what actually displays)
+        self.screen_width = int(self.logical_width * display_scale)
+        self.screen_height = int(self.logical_height * display_scale)
+        
+        print(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
+        
+        # Color definitions
+        self.colors = {
+            'black': (0, 0, 0),
+            'white': (255, 255, 255),
+            'red': (255, 0, 0),
+            'green': (0, 255, 0),
+            'blue': (0, 0, 255),
+            'yellow': (255, 255, 0),
+            'cyan': (0, 255, 255),
+            'magenta': (255, 0, 255)
+        }
+        
+        # Initialize grid (0 = black/off, 1 = white/on by default)
+        self.grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
+        self.selected_color = self.colors['black']  # Changed from white to black
+        self.text_content = []  # Store loaded text blocks
+        
+        # Pygame setup
+        try:
+            self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+            pygame.display.set_caption("Screen Displayer")
+            self.clock = pygame.time.Clock()
+            self.running = True
+            print("Pygame display initialized successfully")
+        except Exception as e:
+            print(f"Error initializing pygame display: {e}")
+            raise
+        
+        # Add transition system
+        self.current_grid = [[False for _ in range(grid_width)] for _ in range(grid_height)]
+        self.target_grid = [[False for _ in range(grid_width)] for _ in range(grid_height)]
+        self.transition_pixels = []  # List of (row, col) pixels that need to change
+        self.is_transitioning = False
+        self.transition_speed = 5.0  # pixels to change per frame (now supports fractional values)
+        self.transition_accumulator = 0.0  # Accumulates fractional pixel changes
+        self.transition_start_time = 0  # For timing logs
+        
+        # Add overlay system
+        self.overlay = ScreenOverlay(grid_width, grid_height, square_size, display_scale, self.settings)
+        self.overlay_enabled = True
+        
+        print("ScreenDisplayer initialization complete")
+    
+    def load_text_file(self, filepath: str) -> None:
+        """Load text from file and save to class variable as blocks separated by empty lines"""
+        try:
+            with open(filepath, 'r') as file:
+                content = file.read()
+            
+            # Split content into blocks separated by empty lines
+            blocks = []
+            current_block = []
+            
+            for line in content.splitlines():
+                if line.strip() == "":  # Empty line - start new block
+                    if current_block:  # Only add non-empty blocks
+                        blocks.append("\n".join(current_block))
+                        current_block = []
+                else:
+                    current_block.append(line)
+            
+            # Add final block if it exists
+            if current_block:
+                blocks.append("\n".join(current_block))
+            
+            self.text_content = blocks
+            print(f"Loaded {len(blocks)} text blocks from {filepath}")
+            
+        except FileNotFoundError:
+            print(f"File {filepath} not found. Using empty text.")
+            self.text_content = []
+        except Exception as e:
+            print(f"Error loading file: {e}")
+            self.text_content = []
+    
+    def start_transition_to_text(self, block_index: int) -> None:
+        """Start a transition to new text content"""
+        if block_index < len(self.text_content):
+            start_time = time.time()
+            print(f"[TIMING] Starting transition to block {block_index} at {start_time:.3f}")
+            
+            # Create target grid with new text
+            self.target_grid = [[False for _ in range(self.grid_width)] for _ in range(self.grid_height)]
+            self._render_text_to_grid(self.text_content[block_index], self.target_grid)
+            
+            # Find all pixels that need to change
+            self.transition_pixels = []
+            for row in range(self.grid_height):
+                for col in range(self.grid_width):
+                    if self.current_grid[row][col] != self.target_grid[row][col]:
+                        self.transition_pixels.append((row, col))
+            
+            setup_time = time.time() - start_time
+            print(f"[TIMING] Text transition setup: {len(self.transition_pixels)} pixels to change, setup took {setup_time*1000:.1f}ms")
+            print(f"[TIMING] Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
+            
+            # Randomize the order of pixel changes
+            random.shuffle(self.transition_pixels)
+            self.is_transitioning = True
+            self.transition_start_time = time.time()
+    
+    def start_transition_to_blank(self) -> None:
+        """Start a transition to blank/empty display"""
+        start_time = time.time()
+        print(f"[TIMING] Starting transition to blank display at {start_time:.3f}")
+        
+        # Create target grid with empty text (much faster than transitioning all pixels)
+        self.target_grid = [[False for _ in range(self.grid_width)] for _ in range(self.grid_height)]
+        self._render_text_to_grid("", self.target_grid)  # Render empty string
+        
+        # Find pixels that need to change (only text pixels turn off, background stays)
+        self.transition_pixels = []
+        for row in range(self.grid_height):
+            for col in range(self.grid_width):
+                if self.current_grid[row][col] != self.target_grid[row][col]:
+                    self.transition_pixels.append((row, col))
+        
+        setup_time = time.time() - start_time
+        print(f"[TIMING] Blank transition setup: {len(self.transition_pixels)} pixels to turn off, setup took {setup_time*1000:.1f}ms")
+        print(f"[TIMING] Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
+        
+        # Randomize the order of pixel changes
+        random.shuffle(self.transition_pixels)
+        self.is_transitioning = True
+        self.transition_start_time = time.time()
+    
+    def update_transition(self) -> None:
+        """Update the transition animation - call this each frame"""
+        if not self.is_transitioning or not self.transition_pixels:
+            self.is_transitioning = False
+            return
+        
+        # Add this frame's transition speed to the accumulator
+        self.transition_accumulator += self.transition_speed
+        
+        # Change whole pixels based on accumulator
+        pixels_to_change = min(int(self.transition_accumulator), len(self.transition_pixels))
+        
+        # Subtract the pixels we're actually changing from the accumulator
+        self.transition_accumulator -= pixels_to_change
+        
+        for _ in range(pixels_to_change):
+            if self.transition_pixels:
+                row, col = self.transition_pixels.pop()
+                self.current_grid[row][col] = self.target_grid[row][col]
+        
+        # Check if transition is complete
+        if not self.transition_pixels:
+            self.is_transitioning = False
+            self.transition_accumulator = 0.0  # Reset accumulator when transition completes
+            print("Transition complete")
+            # Copy target to grid for compatibility with existing code
+            self.grid = [[int(self.target_grid[row][col]) for col in range(self.grid_width)] for row in range(self.grid_height)]
+    
+    def display_text(self, block_index: int = 0) -> None:
+        """Display a specific text block by starting a transition to it"""
+        print(f"display_text called with block_index: {block_index}")
+        
+        if not self.text_content or block_index >= len(self.text_content):
+            print("No text content or invalid block index")
+            return
+        
+        # Use the transition system instead of immediate update
+        self.start_transition_to_text(block_index)
+    
+    def set_selected_color(self, color_name: str) -> None:
+        """Set the color for lit squares"""
+        if color_name in self.colors:
+            self.selected_color = self.colors[color_name]
+            print(f"Color set to: {color_name}")
+    
+    def update_grid(self, new_grid: List[List[int]]) -> None:
+        """Update the grid with new data"""
+        if len(new_grid) <= self.grid_height and all(len(row) <= self.grid_width for row in new_grid):
+            self.grid = new_grid
+    
+    def set_transition_speed(self, speed: float) -> None:
+        """Set how many pixels change per frame during transitions. Higher = faster. Supports fractional values."""
+        self.transition_speed = max(0.1, speed)  # Ensure at least 0.1 pixels per frame
+        print(f"Transition speed set to: {speed} pixels per frame")
+    
+    def get_transition_speed(self) -> float:
+        """Get the current transition speed."""
+        return self.transition_speed
+    
+    def _render_text_to_grid(self, text_block, target_grid):
+        """Helper method to render text to a specific grid"""
+        # Clear the target grid
+        for row in range(len(target_grid)):
+            for col in range(len(target_grid[row])):
+                target_grid[row][col] = False
+        
+        # Handle empty string case (blank display)
+        if not text_block or text_block.strip() == "":
+            # Empty string - grid is already cleared, nothing more to do
+            return
+        
+        # Split text into lines
+        lines = text_block.splitlines()
+        
+        # Convert text to grid using letter dictionary (character dimensions from settings)
+        char_width = self.settings.text_rendering.char_width
+        char_height = self.settings.text_rendering.char_height
+        spacing_x = self.settings.text_rendering.spacing_x
+        spacing_y = self.settings.text_rendering.spacing_y
+        
+        # Calculate total text height for vertical centering
+        text_height = len(lines) * (char_height + spacing_y) - spacing_y
+        start_y = (self.grid_height - text_height) // 2
+        
+        for row, line in enumerate(lines):
+            if row * (char_height + spacing_y) + start_y >= self.grid_height:
+                break
+            
+            # Trim the line to remove leading/trailing spaces for accurate centering
+            trimmed_line = line.strip()
+            
+            # Calculate horizontal centering for this specific trimmed line
+            line_width = len(trimmed_line) * (char_width + spacing_x) - spacing_x if trimmed_line else 0
+            start_x = (self.grid_width - line_width) // 2
+                
+            for col, char in enumerate(trimmed_line):
+                if col * (char_width + spacing_x) + start_x >= self.grid_width:
+                    break
+                    
+                # Get character pattern from dictionary
+                char_pattern = letter_dict.get(char.upper(), letter_dict.get(' ', []))
+                
+                # Place character pattern in grid with spacing and centering
+                for y in range(min(char_height, len(char_pattern))):
+                    if row * (char_height + spacing_y) + start_y + y >= self.grid_height or row * (char_height + spacing_y) + start_y + y < 0:
+                        break
+                    for x in range(char_width):
+                        grid_x = col * (char_width + spacing_x) + start_x + x
+                        grid_y = row * (char_height + spacing_y) + start_y + y
+                        
+                        if 0 <= grid_x < self.grid_width and 0 <= grid_y < self.grid_height:
+                            # Extract bit from binary pattern
+                            bit_value = (char_pattern[y] >> (char_width - 1 - x)) & 1
+                            target_grid[grid_y][grid_x] = bool(bit_value)
+    
+    def draw_grid(self) -> None:
+        """Draw the current grid state with overlay effects"""
+        self.screen.fill(self.colors['black'])
+        
+        pixels_drawn = 0
+        for row in range(self.grid_height):
+            for col in range(self.grid_width):
+                if self.current_grid[row][col]:  # Use current_grid instead of grid
+                    x = int(col * self.square_size * self.display_scale)
+                    y = int(row * self.square_size * self.display_scale)
+                    width = int(self.square_size * self.display_scale)
+                    height = int(self.square_size * self.display_scale)
+                    pygame.draw.rect(self.screen, self.selected_color, (x, y, width, height))
+                    pixels_drawn += 1
+        
+        # Render overlay effects
+        if self.overlay_enabled:
+            self.overlay.update_effects(self.current_grid)
+            self.overlay.render_overlay(self.screen, self.selected_color)
+        
+        # Debug output occasionally
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % self.settings.debug.debug_output_interval == 0:
+            print(f"Drew {pixels_drawn} pixels")
+            if self.overlay_enabled:
+                stats = self.overlay.get_effect_stats()
+                print(f"Overlay effects - Ghost: {stats['ghost_pixels']}, Flicker: {stats['flicker_pixels']}")
+    
+    def handle_events(self) -> None:
+        """Handle pygame events"""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                elif event.key == pygame.K_o:  # Toggle overlay
+                    self.overlay_enabled = not self.overlay_enabled
+                    print(f"Overlay effects: {'ON' if self.overlay_enabled else 'OFF'}")
+                elif event.key == pygame.K_c:  # Clear overlay effects
+                    self.overlay.clear_effects()
+                    print("Overlay effects cleared")
+                elif event.key == pygame.K_t:  # Cycle through color schemes
+                    # Get current scheme from overlay directly
+                    current_scheme = self.overlay.color_scheme_name
+                    all_schemes = list(ColorScheme)
+                    
+                    # Find current scheme enum
+                    current_enum = ColorScheme.from_string(current_scheme)
+                    
+                    try:
+                        current_index = all_schemes.index(current_enum)
+                        next_index = (current_index + 1) % len(all_schemes)
+                    except ValueError:
+                        next_index = 0
+                    
+                    next_scheme = all_schemes[next_index]
+                    self.set_ghost_color_scheme(next_scheme)
+                    print(f"Color scheme changed to: {next_scheme.value}")
+                elif event.key == pygame.K_m:  # Toggle color transition mode
+                    # Get current mode from overlay directly
+                    current_mode = self.overlay.color_transition_mode
+                    
+                    # Cycle through enum modes
+                    if current_mode == TransitionMode.SMOOTH:
+                        new_mode = TransitionMode.SNAP
+                    elif current_mode == TransitionMode.SNAP:
+                        new_mode = TransitionMode.MIXED
+                    elif current_mode == TransitionMode.MIXED:
+                        new_mode = TransitionMode.SPREAD_HORIZONTAL
+                    elif current_mode == TransitionMode.SPREAD_HORIZONTAL:
+                        new_mode = TransitionMode.SPREAD_VERTICAL
+                    else:  # SPREAD_VERTICAL
+                        new_mode = TransitionMode.SMOOTH
+                    
+                    self.set_color_transition_mode(new_mode)
+                    print(f"Color transition mode changed to: {new_mode.value}")
+    
+    def configure_overlay_effects(self, ghost_chance: Optional[float] = None, ghost_decay: Optional[float] = None,
+                                flicker_chance: Optional[float] = None, flicker_intensity: Optional[float] = None,
+                                color_scheme: Union[ColorScheme, str, None] = None, 
+                                color_transition_mode: Union[TransitionMode, str, None] = None,
+                                snap_duration: Optional[int] = None) -> None:
+        """Configure overlay effect parameters using enums or strings"""
+        # Set default ghost parameters for outline effect
+        if ghost_chance is None:
+            ghost_chance = 0.15  # Higher chance for better outline effect
+        
+        # Only pass parameters that were actually provided to avoid sending None to functions that expect floats
+        ghost_kwargs = {}
+        if ghost_chance is not None:
+            ghost_kwargs['chance'] = ghost_chance
+        if ghost_decay is not None:
+            ghost_kwargs['decay'] = ghost_decay
+        if ghost_kwargs:
+            self.overlay.set_ghost_parameters(**ghost_kwargs)
+
+        flicker_kwargs = {}
+        if flicker_chance is not None:
+            flicker_kwargs['chance'] = flicker_chance
+        if flicker_intensity is not None:
+            flicker_kwargs['intensity'] = flicker_intensity
+        if flicker_kwargs:
+            self.overlay.set_flicker_parameters(**flicker_kwargs)
+        
+        # Set color scheme if provided
+        if color_scheme is not None:
+            self.overlay.set_color_scheme(color_scheme)
+        
+        # Set color transition mode if provided
+        if color_transition_mode is not None:
+            self.overlay.set_color_transition_mode(color_transition_mode, snap_duration)
+    
+    def set_color_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
+        """Set the color transition mode using TransitionMode enum or string."""
+        return self.overlay.set_color_transition_mode(mode, snap_duration)
+    
+    def set_ghost_color_scheme(self, scheme: Union[ColorScheme, str]) -> bool:
+        """Set the ghost color scheme using ColorScheme enum or string."""
+        return self.overlay.set_color_scheme(scheme)
+    
+    def set_custom_ghost_colors(self, colors: List[Tuple[int, int, int]]) -> bool:
+        """Set custom colors for ghost effects"""
+        return self.overlay.set_custom_color_scheme(colors)
+    
+    def get_available_color_schemes(self) -> List[str]:
+        """Get list of available color scheme names"""
+        return list_color_schemes()
+    
+    def get_display_type(self) -> DisplayType:
+        """Get the current display type."""
+        return self.display_type
+    
+    def set_display_type(self, display_type: DisplayType) -> None:
+        """Set the display type. Note: Currently only PIXEL_GRID is implemented."""
+        if display_type != DisplayType.PIXEL_GRID:
+            print(f"Warning: Display type {display_type.name} not yet implemented. Using PIXEL_GRID.")
+            display_type = DisplayType.PIXEL_GRID
+        self.display_type = display_type
+        print(f"Display type set to: {display_type.name}")
+    
+    def run(self, fps: int = 60, transition_manager=None) -> None:
+        """Main display loop with optional transition manager"""
+        print(f"Starting main loop at {fps} FPS")
+        
+        while self.running:
+            # Handle events
+            self.handle_events()
+            
+            # Update transition manager if provided
+            if transition_manager:
+                transition_manager.update()
+            
+            # Update transition animation
+            self.update_transition()
+            
+            # Draw everything
+            self.draw_grid()
+            pygame.display.flip()
+            
+            # Control frame rate
+            self.clock.tick(fps)
+        
+        print("Main loop ended")
