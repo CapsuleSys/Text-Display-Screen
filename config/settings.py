@@ -44,12 +44,82 @@ class TransitionSettings:
     blank_time_between_transitions: int = 0  # frames to show blank screen between transitions
     shuffle_text_order: bool = False  # whether to process text blocks in random order
     
+    # Effect transition enable flags
+    transition_color_scheme: bool = False  # whether to change color scheme on text change
+    transition_color_mode: bool = False  # whether to change transition mode on text change
+    transition_ghost_params: bool = False  # whether to change ghost parameters on text change
+    transition_flicker_params: bool = False  # whether to change flicker parameters on text change
+    transition_speed_variation: bool = False  # whether to vary transition speed on text change
+    
+    # Effect transition order modes ("random" or "sequential")
+    color_scheme_order: str = "random"
+    color_mode_order: str = "random"
+    ghost_params_order: str = "random"
+    flicker_params_order: str = "random"
+    speed_order: str = "random"
+    
+    # Speed variation ranges
+    speed_min: float = 1.0
+    speed_max: float = 15.0
+    
+    # Ghost parameter ranges
+    ghost_chance_min: float = 0.05
+    ghost_chance_max: float = 0.3
+    ghost_decay_min: float = 0.985
+    ghost_decay_max: float = 0.998
+    
+    # Flicker parameter ranges
+    flicker_chance_min: float = 0.0
+    flicker_chance_max: float = 0.1
+    flicker_intensity_min: float = 0.1
+    flicker_intensity_max: float = 0.3
+    
     def validate(self) -> bool:
         """Validate transition settings."""
         if self.transition_speed < 0.1:
             return False
         if self.text_change_interval <= 0:
             return False
+        
+        # Validate order mode strings
+        valid_orders = ["random", "sequential"]
+        if self.color_scheme_order not in valid_orders:
+            return False
+        if self.color_mode_order not in valid_orders:
+            return False
+        if self.ghost_params_order not in valid_orders:
+            return False
+        if self.flicker_params_order not in valid_orders:
+            return False
+        if self.speed_order not in valid_orders:
+            return False
+        
+        # Validate min/max ranges
+        if self.speed_min >= self.speed_max:
+            return False
+        if self.speed_min < 0.1 or self.speed_max > 50.0:
+            return False
+        
+        if self.ghost_chance_min >= self.ghost_chance_max:
+            return False
+        if not (0.0 <= self.ghost_chance_min <= 1.0) or not (0.0 <= self.ghost_chance_max <= 1.0):
+            return False
+        
+        if self.ghost_decay_min >= self.ghost_decay_max:
+            return False
+        if not (0.0 <= self.ghost_decay_min <= 1.0) or not (0.0 <= self.ghost_decay_max <= 1.0):
+            return False
+        
+        if self.flicker_chance_min >= self.flicker_chance_max:
+            return False
+        if not (0.0 <= self.flicker_chance_min <= 1.0) or not (0.0 <= self.flicker_chance_max <= 1.0):
+            return False
+        
+        if self.flicker_intensity_min >= self.flicker_intensity_max:
+            return False
+        if not (0.0 <= self.flicker_intensity_min <= 1.0) or not (0.0 <= self.flicker_intensity_max <= 1.0):
+            return False
+        
         return True
 
 
@@ -137,6 +207,10 @@ class OverlaySettings:
     color_shift_speed: float = 0.005
     snap_duration: int = 120  # frames
     
+    # Color averaging settings
+    enable_color_averaging: bool = False  # Whether to periodically average ghost colors with neighbors
+    color_averaging_interval: int = 30  # Frames between color averaging updates
+    
     def validate(self) -> bool:
         """Validate overlay settings."""
         if not (0.0 <= self.ghost_chance <= 1.0):
@@ -154,6 +228,8 @@ class OverlaySettings:
         if self.color_shift_speed < 0:
             return False
         if self.snap_duration <= 0:
+            return False
+        if self.color_averaging_interval <= 0:
             return False
         return True
 
@@ -206,6 +282,56 @@ class Settings:
                 settings.transition.blank_time_between_transitions = transition_data['blank_time_between_transitions']
             if 'shuffle_text_order' in transition_data:
                 settings.transition.shuffle_text_order = transition_data['shuffle_text_order']
+            
+            # Load effect transition enable flags
+            if 'transition_color_scheme' in transition_data:
+                settings.transition.transition_color_scheme = transition_data['transition_color_scheme']
+            if 'transition_color_mode' in transition_data:
+                settings.transition.transition_color_mode = transition_data['transition_color_mode']
+            if 'transition_ghost_params' in transition_data:
+                settings.transition.transition_ghost_params = transition_data['transition_ghost_params']
+            if 'transition_flicker_params' in transition_data:
+                settings.transition.transition_flicker_params = transition_data['transition_flicker_params']
+            if 'transition_speed_variation' in transition_data:
+                settings.transition.transition_speed_variation = transition_data['transition_speed_variation']
+            
+            # Load effect transition order modes
+            if 'color_scheme_order' in transition_data:
+                settings.transition.color_scheme_order = transition_data['color_scheme_order']
+            if 'color_mode_order' in transition_data:
+                settings.transition.color_mode_order = transition_data['color_mode_order']
+            if 'ghost_params_order' in transition_data:
+                settings.transition.ghost_params_order = transition_data['ghost_params_order']
+            if 'flicker_params_order' in transition_data:
+                settings.transition.flicker_params_order = transition_data['flicker_params_order']
+            if 'speed_order' in transition_data:
+                settings.transition.speed_order = transition_data['speed_order']
+            
+            # Load speed variation ranges
+            if 'speed_min' in transition_data:
+                settings.transition.speed_min = transition_data['speed_min']
+            if 'speed_max' in transition_data:
+                settings.transition.speed_max = transition_data['speed_max']
+            
+            # Load ghost parameter ranges
+            if 'ghost_chance_min' in transition_data:
+                settings.transition.ghost_chance_min = transition_data['ghost_chance_min']
+            if 'ghost_chance_max' in transition_data:
+                settings.transition.ghost_chance_max = transition_data['ghost_chance_max']
+            if 'ghost_decay_min' in transition_data:
+                settings.transition.ghost_decay_min = transition_data['ghost_decay_min']
+            if 'ghost_decay_max' in transition_data:
+                settings.transition.ghost_decay_max = transition_data['ghost_decay_max']
+            
+            # Load flicker parameter ranges
+            if 'flicker_chance_min' in transition_data:
+                settings.transition.flicker_chance_min = transition_data['flicker_chance_min']
+            if 'flicker_chance_max' in transition_data:
+                settings.transition.flicker_chance_max = transition_data['flicker_chance_max']
+            if 'flicker_intensity_min' in transition_data:
+                settings.transition.flicker_intensity_min = transition_data['flicker_intensity_min']
+            if 'flicker_intensity_max' in transition_data:
+                settings.transition.flicker_intensity_max = transition_data['flicker_intensity_max']
         
         # Load overlay settings
         if 'overlay' in data:
@@ -234,6 +360,10 @@ class Settings:
                 settings.overlay.color_shift_speed = overlay_data['color_shift_speed']
             if 'snap_duration' in overlay_data:
                 settings.overlay.snap_duration = overlay_data['snap_duration']
+            if 'enable_color_averaging' in overlay_data:
+                settings.overlay.enable_color_averaging = overlay_data['enable_color_averaging']
+            if 'color_averaging_interval' in overlay_data:
+                settings.overlay.color_averaging_interval = overlay_data['color_averaging_interval']
         
         # Load text rendering settings
         if 'text_rendering' in data:
@@ -288,7 +418,32 @@ class Settings:
                 'transition_speed': self.transition.transition_speed,
                 'text_change_interval': self.transition.text_change_interval,
                 'blank_time_between_transitions': self.transition.blank_time_between_transitions,
-                'shuffle_text_order': self.transition.shuffle_text_order
+                'shuffle_text_order': self.transition.shuffle_text_order,
+                # Effect transition enable flags
+                'transition_color_scheme': self.transition.transition_color_scheme,
+                'transition_color_mode': self.transition.transition_color_mode,
+                'transition_ghost_params': self.transition.transition_ghost_params,
+                'transition_flicker_params': self.transition.transition_flicker_params,
+                'transition_speed_variation': self.transition.transition_speed_variation,
+                # Effect transition order modes
+                'color_scheme_order': self.transition.color_scheme_order,
+                'color_mode_order': self.transition.color_mode_order,
+                'ghost_params_order': self.transition.ghost_params_order,
+                'flicker_params_order': self.transition.flicker_params_order,
+                'speed_order': self.transition.speed_order,
+                # Speed variation ranges
+                'speed_min': self.transition.speed_min,
+                'speed_max': self.transition.speed_max,
+                # Ghost parameter ranges
+                'ghost_chance_min': self.transition.ghost_chance_min,
+                'ghost_chance_max': self.transition.ghost_chance_max,
+                'ghost_decay_min': self.transition.ghost_decay_min,
+                'ghost_decay_max': self.transition.ghost_decay_max,
+                # Flicker parameter ranges
+                'flicker_chance_min': self.transition.flicker_chance_min,
+                'flicker_chance_max': self.transition.flicker_chance_max,
+                'flicker_intensity_min': self.transition.flicker_intensity_min,
+                'flicker_intensity_max': self.transition.flicker_intensity_max
             },
             'overlay': {
                 'overlay_enabled': self.overlay.overlay_enabled,
@@ -302,7 +457,9 @@ class Settings:
                 'color_scheme': self.overlay.color_scheme.value,
                 'color_transition_mode': self.overlay.color_transition_mode.value,
                 'color_shift_speed': self.overlay.color_shift_speed,
-                'snap_duration': self.overlay.snap_duration
+                'snap_duration': self.overlay.snap_duration,
+                'enable_color_averaging': self.overlay.enable_color_averaging,
+                'color_averaging_interval': self.overlay.color_averaging_interval
             },
             'text_rendering': {
                 'char_width': self.text_rendering.char_width,
@@ -380,7 +537,9 @@ class Settings:
             flicker_intensity=self.overlay.flicker_intensity,
             color_scheme=self.overlay.color_scheme,
             color_transition_mode=self.overlay.color_transition_mode,
-            snap_duration=self.overlay.snap_duration
+            snap_duration=self.overlay.snap_duration,
+            enable_color_averaging=self.overlay.enable_color_averaging,
+            color_averaging_interval=self.overlay.color_averaging_interval
         )
         
         # Set display type
