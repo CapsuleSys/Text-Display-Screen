@@ -363,7 +363,9 @@ class ScreenDisplayer:
                                 flicker_chance: Optional[float] = None, flicker_intensity: Optional[float] = None,
                                 color_scheme: Union[ColorScheme, str, None] = None, 
                                 color_transition_mode: Union[TransitionMode, str, None] = None,
-                                snap_duration: Optional[int] = None) -> None:
+                                snap_duration: Optional[int] = None,
+                                enable_color_averaging: Optional[bool] = None,
+                                color_averaging_interval: Optional[int] = None) -> None:
         """Configure overlay effect parameters using enums or strings"""
         # Set default ghost parameters for outline effect
         if ghost_chance is None:
@@ -393,6 +395,15 @@ class ScreenDisplayer:
         # Set color transition mode if provided
         if color_transition_mode is not None:
             self.overlay.set_color_transition_mode(color_transition_mode, snap_duration)
+        
+        # Set color averaging parameters if provided
+        color_averaging_kwargs = {}
+        if enable_color_averaging is not None:
+            color_averaging_kwargs['enabled'] = enable_color_averaging
+        if color_averaging_interval is not None:
+            color_averaging_kwargs['interval'] = color_averaging_interval
+        if color_averaging_kwargs:
+            self.overlay.set_color_averaging_parameters(**color_averaging_kwargs)
     
     def set_color_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
         """Set the color transition mode using TransitionMode enum or string."""
