@@ -16,7 +16,7 @@ from config.settings import (
     create_transgender_pride_settings, 
     create_performance_settings
 )
-from config.enums import DisplayType, ColorScheme, TransitionMode, OverlayEffect
+from config.enums import DisplayType, ColourScheme, TransitionMode, OverlayEffect
 
 
 class SettingsGUI:
@@ -154,24 +154,24 @@ class SettingsGUI:
         self._bind_widget(overlay_check, "overlay.overlay_enabled", bool)
         row += 1
         
-        # Color Scheme
-        ttk.Label(frame, text="Color Scheme:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        self.color_scheme_var = tk.StringVar(value=self.settings.overlay.color_scheme.value)
-        color_schemes = ColorScheme.list_names()
-        color_combo = ttk.Combobox(frame, textvariable=self.color_scheme_var, 
-                                  values=color_schemes, width=20, state="readonly")
-        color_combo.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        self._bind_widget(color_combo, "overlay.color_scheme", ColorScheme.from_string)
+        # Colour Scheme
+        ttk.Label(frame, text="Colour Scheme:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
+        self.colour_scheme_var = tk.StringVar(value=self.settings.overlay.colour_scheme.value)
+        colour_schemes = ColourScheme.list_names()
+        colour_combo = ttk.Combobox(frame, textvariable=self.colour_scheme_var, 
+                                  values=colour_schemes, width=20, state="readonly")
+        colour_combo.grid(row=row, column=1, sticky="w", padx=5, pady=5)
+        self._bind_widget(colour_combo, "overlay.colour_scheme", ColourScheme.from_string)
         row += 1
         
         # Transition Mode
         ttk.Label(frame, text="Transition Mode:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        self.transition_mode_var = tk.StringVar(value=self.settings.overlay.color_transition_mode.value)
+        self.transition_mode_var = tk.StringVar(value=self.settings.overlay.colour_transition_mode.value)
         transition_modes = TransitionMode.list_names()
         transition_combo = ttk.Combobox(frame, textvariable=self.transition_mode_var,
                                        values=transition_modes, width=20, state="readonly")
         transition_combo.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        self._bind_widget(transition_combo, "overlay.color_transition_mode", TransitionMode.from_string)
+        self._bind_widget(transition_combo, "overlay.colour_transition_mode", TransitionMode.from_string)
         row += 1
         
         # Ghost Parameters Section
@@ -253,45 +253,45 @@ class SettingsGUI:
         self._bind_widget(flicker_chance_scale, "overlay.flicker_chance", float)
         row += 1
         
-        # Color Averaging Section
+        # Colour Averaging Section
         ttk.Separator(frame, orient="horizontal").grid(row=row, column=0, columnspan=3,
                                                        sticky="ew", padx=5, pady=10)
         row += 1
-        ttk.Label(frame, text="Color Averaging (works with all transition modes)", font=("TkDefaultFont", 10, "bold")).grid(
+        ttk.Label(frame, text="Colour Averaging (works with all transition modes)", font=("TkDefaultFont", 10, "bold")).grid(
             row=row, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         row += 1
         
-        # Enable Color Averaging
-        self.enable_color_averaging_var = tk.BooleanVar(value=self.settings.overlay.enable_color_averaging)
-        color_averaging_check = ttk.Checkbutton(frame, text="Enable color averaging (ghosts blend with neighbors)",
-                                               variable=self.enable_color_averaging_var)
-        color_averaging_check.grid(row=row, column=0, columnspan=2, sticky="w", padx=5, pady=5)
-        self._bind_widget(color_averaging_check, "overlay.enable_color_averaging", bool)
+        # Enable Colour Averaging
+        self.enable_colour_averaging_var = tk.BooleanVar(value=self.settings.overlay.enable_colour_averaging)
+        colour_averaging_check = ttk.Checkbutton(frame, text="Enable colour averaging (ghosts blend with neighbours)",
+                                               variable=self.enable_colour_averaging_var)
+        colour_averaging_check.grid(row=row, column=0, columnspan=2, sticky="w", padx=5, pady=5)
+        self._bind_widget(colour_averaging_check, "overlay.enable_colour_averaging", bool)
         row += 1
         
-        # Color Averaging Interval
+        # Colour Averaging Interval
         ttk.Label(frame, text="Averaging Interval (frames):").grid(row=row, column=0, sticky="w", padx=5, pady=5)
-        self.color_averaging_interval_var = tk.IntVar(value=self.settings.overlay.color_averaging_interval)
-        color_averaging_scale = ttk.Scale(frame, from_=10, to=180, orient="horizontal",
-                                         variable=self.color_averaging_interval_var, length=200)
-        color_averaging_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        color_averaging_label = ttk.Label(frame, text="")
-        color_averaging_label.grid(row=row, column=2, sticky="w", padx=5)
+        self.colour_averaging_interval_var = tk.IntVar(value=self.settings.overlay.colour_averaging_interval)
+        colour_averaging_scale = ttk.Scale(frame, from_=10, to=180, orient="horizontal",
+                                         variable=self.colour_averaging_interval_var, length=200)
+        colour_averaging_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
+        colour_averaging_label = ttk.Label(frame, text="")
+        colour_averaging_label.grid(row=row, column=2, sticky="w", padx=5)
         
-        def update_color_averaging_label(*args):
+        def update_colour_averaging_label(*args):
             try:
-                frames = self.color_averaging_interval_var.get()
+                frames = self.colour_averaging_interval_var.get()
                 seconds = frames / 60  # Assuming 60 FPS
-                color_averaging_label.config(text=f"{frames} ({seconds:.2f}s @ 60fps)")
+                colour_averaging_label.config(text=f"{frames} ({seconds:.2f}s @ 60fps)")
             except (tk.TclError, ValueError):
-                color_averaging_label.config(text="30 (0.50s @ 60fps)")
-        self.color_averaging_interval_var.trace_add('write', update_color_averaging_label)
-        update_color_averaging_label()
+                colour_averaging_label.config(text="30 (0.50s @ 60fps)")
+        self.colour_averaging_interval_var.trace_add('write', update_colour_averaging_label)
+        update_colour_averaging_label()
         
-        self._bind_widget(color_averaging_scale, "overlay.color_averaging_interval", int)
+        self._bind_widget(colour_averaging_scale, "overlay.colour_averaging_interval", int)
         row += 1
         
-        ttk.Label(frame, text="Ghost colors periodically update to match average of 5x5 neighbors",
+        ttk.Label(frame, text="Ghost colours periodically update to match average of 5x5 neighbours",
                  font=("TkDefaultFont", 8), foreground="gray").grid(
             row=row, column=0, columnspan=3, sticky="w", padx=5, pady=(0, 5))
         row += 1
@@ -404,48 +404,48 @@ class SettingsGUI:
             row=row, column=0, columnspan=3, sticky="w", padx=5, pady=5)
         row += 1
         
-        # 1. COLOR SCHEME TRANSITIONS
-        color_scheme_frame = ttk.LabelFrame(frame, text="Color Scheme Transitions", padding=10)
-        color_scheme_frame.grid(row=row, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        # 1. COLOUR SCHEME TRANSITIONS
+        colour_scheme_frame = ttk.LabelFrame(frame, text="Colour Scheme Transitions", padding=10)
+        colour_scheme_frame.grid(row=row, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         row += 1
         
-        self.transition_color_scheme_var = tk.BooleanVar(value=self.settings.transition.transition_color_scheme)
-        color_scheme_check = ttk.Checkbutton(color_scheme_frame, 
-            text="Also transition color scheme when text changes",
-            variable=self.transition_color_scheme_var)
-        color_scheme_check.grid(row=0, column=0, columnspan=2, sticky="w", pady=2)
-        self._bind_widget(color_scheme_check, "transition.transition_color_scheme", bool)
+        self.transition_colour_scheme_var = tk.BooleanVar(value=self.settings.transition.transition_colour_scheme)
+        colour_scheme_check = ttk.Checkbutton(colour_scheme_frame, 
+            text="Also transition colour scheme when text changes",
+            variable=self.transition_colour_scheme_var)
+        colour_scheme_check.grid(row=0, column=0, columnspan=2, sticky="w", pady=2)
+        self._bind_widget(colour_scheme_check, "transition.transition_colour_scheme", bool)
         
-        self.color_scheme_order_var = tk.StringVar(value=self.settings.transition.color_scheme_order)
-        ttk.Radiobutton(color_scheme_frame, text="Random", variable=self.color_scheme_order_var, 
+        self.colour_scheme_order_var = tk.StringVar(value=self.settings.transition.colour_scheme_order)
+        ttk.Radiobutton(colour_scheme_frame, text="Random", variable=self.colour_scheme_order_var, 
                        value="random").grid(row=1, column=0, sticky="w", padx=20)
-        ttk.Radiobutton(color_scheme_frame, text="Sequential", variable=self.color_scheme_order_var,
+        ttk.Radiobutton(colour_scheme_frame, text="Sequential", variable=self.colour_scheme_order_var,
                        value="sequential").grid(row=1, column=1, sticky="w")
-        self._bind_widget(color_scheme_frame, "transition.color_scheme_order", str)
+        self._bind_widget(colour_scheme_frame, "transition.colour_scheme_order", str)
         
-        ttk.Label(color_scheme_frame, text="Cycles through all 23 available color schemes",
+        ttk.Label(colour_scheme_frame, text="Cycles through all 23 available colour schemes",
                  font=("TkDefaultFont", 8)).grid(row=2, column=0, columnspan=2, sticky="w", pady=2)
         
         # 2. TRANSITION MODE TRANSITIONS
-        color_mode_frame = ttk.LabelFrame(frame, text="Transition Mode Transitions", padding=10)
-        color_mode_frame.grid(row=row, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        colour_mode_frame = ttk.LabelFrame(frame, text="Transition Mode Transitions", padding=10)
+        colour_mode_frame.grid(row=row, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         row += 1
         
-        self.transition_color_mode_var = tk.BooleanVar(value=self.settings.transition.transition_color_mode)
-        color_mode_check = ttk.Checkbutton(color_mode_frame,
-            text="Also transition color transition mode when text changes",
-            variable=self.transition_color_mode_var)
-        color_mode_check.grid(row=0, column=0, columnspan=2, sticky="w", pady=2)
-        self._bind_widget(color_mode_check, "transition.transition_color_mode", bool)
+        self.transition_colour_mode_var = tk.BooleanVar(value=self.settings.transition.transition_colour_mode)
+        colour_mode_check = ttk.Checkbutton(colour_mode_frame,
+            text="Also transition colour transition mode when text changes",
+            variable=self.transition_colour_mode_var)
+        colour_mode_check.grid(row=0, column=0, columnspan=2, sticky="w", pady=2)
+        self._bind_widget(colour_mode_check, "transition.transition_colour_mode", bool)
         
-        self.color_mode_order_var = tk.StringVar(value=self.settings.transition.color_mode_order)
-        ttk.Radiobutton(color_mode_frame, text="Random", variable=self.color_mode_order_var,
+        self.colour_mode_order_var = tk.StringVar(value=self.settings.transition.colour_mode_order)
+        ttk.Radiobutton(colour_mode_frame, text="Random", variable=self.colour_mode_order_var,
                        value="random").grid(row=1, column=0, sticky="w", padx=20)
-        ttk.Radiobutton(color_mode_frame, text="Sequential", variable=self.color_mode_order_var,
+        ttk.Radiobutton(colour_mode_frame, text="Sequential", variable=self.colour_mode_order_var,
                        value="sequential").grid(row=1, column=1, sticky="w")
-        self._bind_widget(color_mode_frame, "transition.color_mode_order", str)
+        self._bind_widget(colour_mode_frame, "transition.colour_mode_order", str)
         
-        ttk.Label(color_mode_frame, text="Cycles through: smooth, snap, mixed, spread_horizontal, spread_vertical",
+        ttk.Label(colour_mode_frame, text="Cycles through: smooth, snap, mixed, spread_horizontal, spread_vertical",
                  font=("TkDefaultFont", 8)).grid(row=2, column=0, columnspan=2, sticky="w", pady=2)
         
         # 3. GHOST EFFECT TRANSITIONS
@@ -879,9 +879,9 @@ class SettingsGUI:
                 value = self.shuffle_text_order_var.get()
             elif settings_path == "overlay.overlay_enabled":
                 value = self.overlay_enabled_var.get()
-            elif settings_path == "overlay.color_scheme":
-                value = self.color_scheme_var.get()
-            elif settings_path == "overlay.color_transition_mode":
+            elif settings_path == "overlay.colour_scheme":
+                value = self.colour_scheme_var.get()
+            elif settings_path == "overlay.colour_transition_mode":
                 value = self.transition_mode_var.get()
             elif settings_path == "overlay.ghost_chance":
                 value = self.ghost_chance_var.get()
@@ -889,11 +889,11 @@ class SettingsGUI:
                 value = self.ghost_decay_var.get()
             elif settings_path == "overlay.flicker_chance":
                 value = self.flicker_chance_var.get()
-            elif settings_path == "overlay.enable_color_averaging":
-                value = self.enable_color_averaging_var.get()
-            elif settings_path == "overlay.color_averaging_interval":
+            elif settings_path == "overlay.enable_colour_averaging":
+                value = self.enable_colour_averaging_var.get()
+            elif settings_path == "overlay.colour_averaging_interval":
                 try:
-                    value = self.color_averaging_interval_var.get()
+                    value = self.colour_averaging_interval_var.get()
                     if value <= 0:
                         value = 30  # Default fallback
                 except (tk.TclError, ValueError):
@@ -913,14 +913,14 @@ class SettingsGUI:
                 except (tk.TclError, ValueError):
                     value = 0  # Default fallback
             # Effect transition settings
-            elif settings_path == "transition.transition_color_scheme":
-                value = self.transition_color_scheme_var.get()
-            elif settings_path == "transition.color_scheme_order":
-                value = self.color_scheme_order_var.get()
-            elif settings_path == "transition.transition_color_mode":
-                value = self.transition_color_mode_var.get()
-            elif settings_path == "transition.color_mode_order":
-                value = self.color_mode_order_var.get()
+            elif settings_path == "transition.transition_colour_scheme":
+                value = self.transition_colour_scheme_var.get()
+            elif settings_path == "transition.colour_scheme_order":
+                value = self.colour_scheme_order_var.get()
+            elif settings_path == "transition.transition_colour_mode":
+                value = self.transition_colour_mode_var.get()
+            elif settings_path == "transition.colour_mode_order":
+                value = self.colour_mode_order_var.get()
             elif settings_path == "transition.transition_ghost_params":
                 value = self.transition_ghost_params_var.get()
             elif settings_path == "transition.ghost_params_order":
@@ -1001,13 +1001,13 @@ class SettingsGUI:
         """Update all widgets to reflect current settings values."""
         # Overlay settings
         self.overlay_enabled_var.set(self.settings.overlay.overlay_enabled)
-        self.color_scheme_var.set(self.settings.overlay.color_scheme.value)
-        self.transition_mode_var.set(self.settings.overlay.color_transition_mode.value)
+        self.colour_scheme_var.set(self.settings.overlay.colour_scheme.value)
+        self.transition_mode_var.set(self.settings.overlay.colour_transition_mode.value)
         self.ghost_chance_var.set(self.settings.overlay.ghost_chance)
         self.ghost_decay_var.set(self.settings.overlay.ghost_decay)
         self.flicker_chance_var.set(self.settings.overlay.flicker_chance)
-        self.enable_color_averaging_var.set(self.settings.overlay.enable_color_averaging)
-        self.color_averaging_interval_var.set(self.settings.overlay.color_averaging_interval)
+        self.enable_colour_averaging_var.set(self.settings.overlay.enable_colour_averaging)
+        self.colour_averaging_interval_var.set(self.settings.overlay.colour_averaging_interval)
         
         # Transition settings
         self.transition_speed_var.set(self.settings.transition.transition_speed)
@@ -1016,10 +1016,10 @@ class SettingsGUI:
         self.shuffle_text_order_var.set(self.settings.transition.shuffle_text_order)
         
         # Effect transition settings
-        self.transition_color_scheme_var.set(self.settings.transition.transition_color_scheme)
-        self.color_scheme_order_var.set(self.settings.transition.color_scheme_order)
-        self.transition_color_mode_var.set(self.settings.transition.transition_color_mode)
-        self.color_mode_order_var.set(self.settings.transition.color_mode_order)
+        self.transition_colour_scheme_var.set(self.settings.transition.transition_colour_scheme)
+        self.colour_scheme_order_var.set(self.settings.transition.colour_scheme_order)
+        self.transition_colour_mode_var.set(self.settings.transition.transition_colour_mode)
+        self.colour_mode_order_var.set(self.settings.transition.colour_mode_order)
         self.transition_ghost_params_var.set(self.settings.transition.transition_ghost_params)
         self.ghost_params_order_var.set(self.settings.transition.ghost_params_order)
         self.ghost_chance_min_var.set(self.settings.transition.ghost_chance_min)
@@ -1127,10 +1127,10 @@ class SettingsGUI:
         except Exception as e:
             self._show_status(f"Save error: {str(e)}", "red")
     
-    def _show_status(self, message: str, color: str = "black"):
+    def _show_status(self, message: str, colour: str = "black"):
         """Show status message in the GUI without popups or sounds."""
         if self.status_label:
-            self.status_label.config(text=message, foreground=color)
+            self.status_label.config(text=message, foreground=colour)
             # Clear status after 3 seconds
             self.root.after(3000, lambda: self.status_label.config(text="Ready", foreground="gray") if self.status_label else None)
     

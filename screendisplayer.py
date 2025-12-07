@@ -5,8 +5,8 @@ import time
 from typing import List, Tuple, Dict, Optional, Union
 from letter_dictionary import letter_dict
 from screen_overlay import ScreenOverlay
-from color_schemes import list_color_schemes
-from config.enums import DisplayType, ColorScheme, TransitionMode
+from colour_schemes import list_colour_schemes
+from config.enums import DisplayType, ColourScheme, TransitionMode
 from config.settings import Settings
 
 class ScreenDisplayer:
@@ -36,8 +36,8 @@ class ScreenDisplayer:
         
         print(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
         
-        # Color definitions
-        self.colors = {
+        # Colour definitions
+        self.colours = {
             'black': (0, 0, 0),
             'white': (255, 255, 255),
             'red': (255, 0, 0),
@@ -50,7 +50,7 @@ class ScreenDisplayer:
         
         # Initialize grid (0 = black/off, 1 = white/on by default)
         self.grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
-        self.selected_color = self.colors['black']  # Changed from white to black
+        self.selected_colour = self.colours['black']  # Changed from white to black
         self.text_content = []  # Store loaded text blocks
         
         # Pygame setup
@@ -201,11 +201,11 @@ class ScreenDisplayer:
         # Use the transition system instead of immediate update
         self.start_transition_to_text(block_index)
     
-    def set_selected_color(self, color_name: str) -> None:
-        """Set the color for lit squares"""
-        if color_name in self.colors:
-            self.selected_color = self.colors[color_name]
-            print(f"Color set to: {color_name}")
+    def set_selected_colour(self, colour_name: str) -> None:
+        """Set the colour for lit squares"""
+        if colour_name in self.colours:
+            self.selected_colour = self.colours[colour_name]
+            print(f"Colour set to: {colour_name}")
     
     def update_grid(self, new_grid: List[List[int]]) -> None:
         """Update the grid with new data"""
@@ -279,7 +279,7 @@ class ScreenDisplayer:
     
     def draw_grid(self) -> None:
         """Draw the current grid state with overlay effects"""
-        self.screen.fill(self.colors['black'])
+        self.screen.fill(self.colours['black'])
         
         pixels_drawn = 0
         for row in range(self.grid_height):
@@ -289,13 +289,13 @@ class ScreenDisplayer:
                     y = int(row * self.square_size * self.display_scale)
                     width = int(self.square_size * self.display_scale)
                     height = int(self.square_size * self.display_scale)
-                    pygame.draw.rect(self.screen, self.selected_color, (x, y, width, height))
+                    pygame.draw.rect(self.screen, self.selected_colour, (x, y, width, height))
                     pixels_drawn += 1
         
         # Render overlay effects
         if self.overlay_enabled:
             self.overlay.update_effects(self.current_grid)
-            self.overlay.render_overlay(self.screen, self.selected_color)
+            self.overlay.render_overlay(self.screen, self.selected_colour)
         
         # Debug output occasionally
         if hasattr(self, '_debug_counter'):
@@ -323,13 +323,13 @@ class ScreenDisplayer:
                 elif event.key == pygame.K_c:  # Clear overlay effects
                     self.overlay.clear_effects()
                     print("Overlay effects cleared")
-                elif event.key == pygame.K_t:  # Cycle through color schemes
+                elif event.key == pygame.K_t:  # Cycle through colour schemes
                     # Get current scheme from overlay directly
-                    current_scheme = self.overlay.color_scheme_name
-                    all_schemes = list(ColorScheme)
+                    current_scheme = self.overlay.colour_scheme_name
+                    all_schemes = list(ColourScheme)
                     
                     # Find current scheme enum
-                    current_enum = ColorScheme.from_string(current_scheme)
+                    current_enum = ColourScheme.from_string(current_scheme)
                     
                     try:
                         current_index = all_schemes.index(current_enum)
@@ -338,11 +338,11 @@ class ScreenDisplayer:
                         next_index = 0
                     
                     next_scheme = all_schemes[next_index]
-                    self.set_ghost_color_scheme(next_scheme)
-                    print(f"Color scheme changed to: {next_scheme.value}")
-                elif event.key == pygame.K_m:  # Toggle color transition mode
+                    self.set_ghost_colour_scheme(next_scheme)
+                    print(f"Colour scheme changed to: {next_scheme.value}")
+                elif event.key == pygame.K_m:  # Toggle colour transition mode
                     # Get current mode from overlay directly
-                    current_mode = self.overlay.color_transition_mode
+                    current_mode = self.overlay.colour_transition_mode
                     
                     # Cycle through enum modes
                     if current_mode == TransitionMode.SMOOTH:
@@ -356,16 +356,16 @@ class ScreenDisplayer:
                     else:  # SPREAD_VERTICAL
                         new_mode = TransitionMode.SMOOTH
                     
-                    self.set_color_transition_mode(new_mode)
-                    print(f"Color transition mode changed to: {new_mode.value}")
+                    self.set_colour_transition_mode(new_mode)
+                    print(f"Colour transition mode changed to: {new_mode.value}")
     
     def configure_overlay_effects(self, ghost_chance: Optional[float] = None, ghost_decay: Optional[float] = None,
                                 flicker_chance: Optional[float] = None, flicker_intensity: Optional[float] = None,
-                                color_scheme: Union[ColorScheme, str, None] = None, 
-                                color_transition_mode: Union[TransitionMode, str, None] = None,
+                                colour_scheme: Union[ColourScheme, str, None] = None, 
+                                colour_transition_mode: Union[TransitionMode, str, None] = None,
                                 snap_duration: Optional[int] = None,
-                                enable_color_averaging: Optional[bool] = None,
-                                color_averaging_interval: Optional[int] = None) -> None:
+                                enable_colour_averaging: Optional[bool] = None,
+                                colour_averaging_interval: Optional[int] = None) -> None:
         """Configure overlay effect parameters using enums or strings"""
         # Set default ghost parameters for outline effect
         if ghost_chance is None:
@@ -388,38 +388,38 @@ class ScreenDisplayer:
         if flicker_kwargs:
             self.overlay.set_flicker_parameters(**flicker_kwargs)
         
-        # Set color scheme if provided
-        if color_scheme is not None:
-            self.overlay.set_color_scheme(color_scheme)
+        # Set colour scheme if provided
+        if colour_scheme is not None:
+            self.overlay.set_colour_scheme(colour_scheme)
         
-        # Set color transition mode if provided
-        if color_transition_mode is not None:
-            self.overlay.set_color_transition_mode(color_transition_mode, snap_duration)
+        # Set colour transition mode if provided
+        if colour_transition_mode is not None:
+            self.overlay.set_colour_transition_mode(colour_transition_mode, snap_duration)
         
-        # Set color averaging parameters if provided
-        color_averaging_kwargs = {}
-        if enable_color_averaging is not None:
-            color_averaging_kwargs['enabled'] = enable_color_averaging
-        if color_averaging_interval is not None:
-            color_averaging_kwargs['interval'] = color_averaging_interval
-        if color_averaging_kwargs:
-            self.overlay.set_color_averaging_parameters(**color_averaging_kwargs)
+        # Set colour averaging parameters if provided
+        colour_averaging_kwargs = {}
+        if enable_colour_averaging is not None:
+            colour_averaging_kwargs['enabled'] = enable_colour_averaging
+        if colour_averaging_interval is not None:
+            colour_averaging_kwargs['interval'] = colour_averaging_interval
+        if colour_averaging_kwargs:
+            self.overlay.set_colour_averaging_parameters(**colour_averaging_kwargs)
     
-    def set_color_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
-        """Set the color transition mode using TransitionMode enum or string."""
-        return self.overlay.set_color_transition_mode(mode, snap_duration)
+    def set_colour_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
+        """Set the colour transition mode using TransitionMode enum or string."""
+        return self.overlay.set_colour_transition_mode(mode, snap_duration)
     
-    def set_ghost_color_scheme(self, scheme: Union[ColorScheme, str]) -> bool:
-        """Set the ghost color scheme using ColorScheme enum or string."""
-        return self.overlay.set_color_scheme(scheme)
+    def set_ghost_colour_scheme(self, scheme: Union[ColourScheme, str]) -> bool:
+        """Set the ghost colour scheme using ColourScheme enum or string."""
+        return self.overlay.set_colour_scheme(scheme)
     
-    def set_custom_ghost_colors(self, colors: List[Tuple[int, int, int]]) -> bool:
-        """Set custom colors for ghost effects"""
-        return self.overlay.set_custom_color_scheme(colors)
+    def set_custom_ghost_colours(self, colours: List[Tuple[int, int, int]]) -> bool:
+        """Set custom colours for ghost effects"""
+        return self.overlay.set_custom_colour_scheme(colours)
     
-    def get_available_color_schemes(self) -> List[str]:
-        """Get list of available color scheme names"""
-        return list_color_schemes()
+    def get_available_colour_schemes(self) -> List[str]:
+        """Get list of available colour scheme names"""
+        return list_colour_schemes()
     
     def get_display_type(self) -> DisplayType:
         """Get the current display type."""

@@ -2,7 +2,7 @@ import pygame
 from screendisplayer import ScreenDisplayer
 from transition_manager import TransitionManager
 from config.settings import Settings, create_transgender_pride_settings, create_demo_settings
-from config.enums import DisplayType, ColorScheme, TransitionMode
+from config.enums import DisplayType, ColourScheme, TransitionMode
 import os
 
 def animate_example():
@@ -26,8 +26,8 @@ def animate_example():
         # You can also create custom settings:
         # settings = Settings.create_default()
         # settings.display.display_type = DisplayType.PIXEL_GRID
-        # settings.overlay.color_scheme = ColorScheme.RAINBOW
-        # settings.overlay.color_transition_mode = TransitionMode.SPREAD_HORIZONTAL
+        # settings.overlay.colour_scheme = ColourScheme.RAINBOW
+        # settings.overlay.colour_transition_mode = TransitionMode.SPREAD_HORIZONTAL
         # settings.transition.transition_speed = 8.0
         
         print(f"Settings summary:\n{settings.get_summary()}")
@@ -98,9 +98,9 @@ def animate_example():
         # Optional: Save settings to file for future use
         settings.save_to_file("config/user_settings.json")
         
-        # You can also demonstrate different color schemes and transition modes:
-        print("\nDemonstrating enum-based color scheme changes:")
-        print(f"Available color schemes: {', '.join(ColorScheme.list_names())}")
+        # You can also demonstrate different colour schemes and transition modes:
+        print("\nDemonstrating enum-based colour scheme changes:")
+        print(f"Available colour schemes: {', '.join(ColourScheme.list_names())}")
         print(f"Available transition modes: {', '.join(TransitionMode.list_names())}")
         
         print("Starting main loop...")
@@ -108,8 +108,8 @@ def animate_example():
         print("  ESC - Exit")
         print("  O - Toggle overlay effects")
         print("  C - Clear overlay effects")
-        print("  T - Cycle through color schemes (enum-based)")
-        print("  M - Cycle color transition modes (enum-based)")
+        print("  T - Cycle through colour schemes (enum-based)")
+        print("  M - Cycle colour transition modes (enum-based)")
         print("  S - Save current settings to file")
         print("  L - Load settings from file")
         print("\nNote: All settings now use type-safe enums instead of strings!")

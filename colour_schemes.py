@@ -1,15 +1,15 @@
 """
-Color schemes for ghost overlay effects.
-Each scheme contains a list of RGB color tuples that can be used for ghost pixels.
+Colour schemes for ghost overlay effects.
+Each scheme contains a list of RGB colour tuples that can be used for ghost pixels.
 
-When using 'snap' transition mode, colors will be displayed in sequence for the specified duration.
-When using 'smooth' transition mode, colors will blend smoothly between each other.
+When using 'snap' transition mode, colours will be displayed in sequence for the specified duration.
+When using 'smooth' transition mode, colours will blend smoothly between each other.
 """
 
 from typing import List, Tuple, Union
-from config.enums import ColorScheme
+from config.enums import ColourScheme
 
-COLOR_SCHEMES = {
+COLOUR_SCHEMES = {
     'transgender': [
         (91, 206, 250),   # Baby blue
         (245, 169, 184),  # Pink
@@ -173,47 +173,47 @@ COLOR_SCHEMES = {
     ],
 }
 
-def get_color_scheme(scheme: Union[ColorScheme, str]) -> List[Tuple[int, int, int]]:
-    """Get a color scheme by ColorScheme enum or string name. Returns classic scheme if not found."""
-    if isinstance(scheme, ColorScheme):
+def get_colour_scheme(scheme: Union[ColourScheme, str]) -> List[Tuple[int, int, int]]:
+    """Get a colour scheme by ColourScheme enum or string name. Returns classic scheme if not found."""
+    if isinstance(scheme, ColourScheme):
         scheme_name = scheme.value
     else:
         scheme_name = str(scheme).lower()
     
-    return COLOR_SCHEMES.get(scheme_name, COLOR_SCHEMES['classic'])
+    return COLOUR_SCHEMES.get(scheme_name, COLOUR_SCHEMES['classic'])
 
 
-def get_color_scheme_by_enum(scheme: ColorScheme) -> List[Tuple[int, int, int]]:
-    """Get a color scheme by ColorScheme enum. Type-safe version."""
-    return COLOR_SCHEMES.get(scheme.value, COLOR_SCHEMES['classic'])
+def get_colour_scheme_by_enum(scheme: ColourScheme) -> List[Tuple[int, int, int]]:
+    """Get a colour scheme by ColourScheme enum. Type-safe version."""
+    return COLOUR_SCHEMES.get(scheme.value, COLOUR_SCHEMES['classic'])
 
-def list_color_schemes() -> List[str]:
-    """Return a list of available color scheme names."""
-    return list(COLOR_SCHEMES.keys())
-
-
-def list_color_scheme_enums() -> List[ColorScheme]:
-    """Return a list of available ColorScheme enums."""
-    return list(ColorScheme)
+def list_colour_schemes() -> List[str]:
+    """Return a list of available colour scheme names."""
+    return list(COLOUR_SCHEMES.keys())
 
 
-def validate_color_scheme(colors) -> bool:
-    """Validate that a color scheme is properly formatted."""
-    if not isinstance(colors, list):
+def list_colour_scheme_enums() -> List[ColourScheme]:
+    """Return a list of available ColourScheme enums."""
+    return list(ColourScheme)
+
+
+def validate_colour_scheme(colours) -> bool:
+    """Validate that a colour scheme is properly formatted."""
+    if not isinstance(colours, list):
         return False
     
-    for color in colors:
-        if not isinstance(color, tuple) or len(color) != 3:
+    for colour in colours:
+        if not isinstance(colour, tuple) or len(colour) != 3:
             return False
-        if not all(isinstance(c, int) and 0 <= c <= 255 for c in color):
+        if not all(isinstance(c, int) and 0 <= c <= 255 for c in colour):
             return False
     
     return True
 
 
-def validate_color_scheme_name(scheme: Union[ColorScheme, str]) -> bool:
-    """Validate that a color scheme name or enum is valid."""
-    if isinstance(scheme, ColorScheme):
-        return scheme.value in COLOR_SCHEMES
+def validate_colour_scheme_name(scheme: Union[ColourScheme, str]) -> bool:
+    """Validate that a colour scheme name or enum is valid."""
+    if isinstance(scheme, ColourScheme):
+        return scheme.value in COLOUR_SCHEMES
     else:
-        return str(scheme).lower() in COLOR_SCHEMES
+        return str(scheme).lower() in COLOUR_SCHEMES

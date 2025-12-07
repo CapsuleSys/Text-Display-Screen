@@ -28,8 +28,8 @@ class DisplayType(Enum):
         return cls.PIXEL_GRID
 
 
-class ColorScheme(Enum):
-    """Available color schemes for ghost overlay effects."""
+class ColourScheme(Enum):
+    """Available colour schemes for ghost overlay effects."""
     # Pride flag schemes
     TRANSGENDER = "transgender"
     LESBIAN = "lesbian"
@@ -39,7 +39,7 @@ class ColorScheme(Enum):
     ASEXUAL = "asexual"
     AROMANTIC = "aromantic"
     
-    # Themed color schemes
+    # Themed colour schemes
     RAINBOW = "rainbow"
     FIRE = "fire"
     ICE = "ice"
@@ -57,12 +57,12 @@ class ColorScheme(Enum):
     
     @classmethod
     def list_names(cls) -> List[str]:
-        """Return a list of all color scheme names as strings."""
+        """Return a list of all colour scheme names as strings."""
         return [scheme.value for scheme in cls]
     
     @classmethod
-    def from_string(cls, name: str) -> 'ColorScheme':
-        """Convert a string name to ColorScheme enum. Returns CLASSIC if not found."""
+    def from_string(cls, name: str) -> 'ColourScheme':
+        """Convert a string name to ColourScheme enum. Returns CLASSIC if not found."""
         name_lower = name.lower()
         for scheme in cls:
             if scheme.value == name_lower:
@@ -70,17 +70,17 @@ class ColorScheme(Enum):
         return cls.CLASSIC
     
     def __str__(self) -> str:
-        """Return the string value of the color scheme."""
+        """Return the string value of the colour scheme."""
         return self.value
 
 
 class TransitionMode(Enum):
-    """Color transition modes for ghost overlay effects."""
-    SMOOTH = "smooth"              # Smooth color blending over time
-    SNAP = "snap"                  # Discrete color changes at intervals
-    MIXED = "mixed"                # Random colors from scheme
-    SPREAD_HORIZONTAL = "spread_horizontal"  # Horizontal color gradient
-    SPREAD_VERTICAL = "spread_vertical"      # Vertical color gradient
+    """Colour transition modes for ghost overlay effects."""
+    SMOOTH = "smooth"              # Smooth colour blending over time
+    SNAP = "snap"                  # Discrete colour changes at intervals
+    MIXED = "mixed"                # Random colours from scheme
+    SPREAD_HORIZONTAL = "spread_horizontal"  # Horizontal colour gradient
+    SPREAD_VERTICAL = "spread_vertical"      # Vertical colour gradient
     
     @classmethod
     def list_names(cls) -> List[str]:
@@ -120,10 +120,10 @@ class OverlayEffect(Enum):
 
 # Type aliases for commonly used types
 RGB = Tuple[int, int, int]
-ColorList = List[RGB]
+ColourList = List[RGB]
 
 # Default values
 DEFAULT_DISPLAY_TYPE = DisplayType.PIXEL_GRID
-DEFAULT_COLOR_SCHEME = ColorScheme.CLASSIC
+DEFAULT_COLOUR_SCHEME = ColourScheme.CLASSIC
 DEFAULT_TRANSITION_MODE = TransitionMode.SMOOTH
 DEFAULT_OVERLAY_EFFECT = OverlayEffect.OUTLINE

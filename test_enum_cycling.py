@@ -3,7 +3,7 @@ Test script to verify enum transition mode cycling works correctly.
 Run this to check if the M key cycling functionality is working with enums.
 """
 
-from config.enums import TransitionMode, ColorScheme
+from config.enums import TransitionMode, ColourScheme
 from screen_overlay import ScreenOverlay
 
 def test_transition_mode_cycling():
@@ -41,11 +41,11 @@ def test_transition_mode_cycling():
             new_mode = TransitionMode.SMOOTH
             
         # Set the mode on the overlay
-        success = overlay.set_color_transition_mode(new_mode)
+        success = overlay.set_colour_transition_mode(new_mode)
         print(f"         -> Setting to {new_mode.value}: {'Success' if success else 'Failed'}")
         
         # Verify it was actually set
-        actual_mode = overlay.color_transition_mode
+        actual_mode = overlay.colour_transition_mode
         print(f"         -> Actual mode after setting: {actual_mode.value}")
         print(f"         -> Match: {'✓' if actual_mode == new_mode else '✗'}")
         
@@ -53,14 +53,14 @@ def test_transition_mode_cycling():
         print()
 
 
-def test_color_scheme_cycling():
-    """Test that color scheme cycling works with enums."""
-    print("=== Testing Color Scheme Cycling ===\n")
+def test_colour_scheme_cycling():
+    """Test that colour scheme cycling works with enums."""
+    print("=== Testing Colour Scheme Cycling ===")
     
     overlay = ScreenOverlay(10, 10, 10, 1.0)
     
-    # Test cycling through first few color schemes
-    all_schemes = list(ColorScheme)
+    # Test cycling through first few colour schemes
+    all_schemes = list(ColourScheme)
     print(f"Available schemes ({len(all_schemes)} total):")
     for i, scheme in enumerate(all_schemes[:5]):  # Show first 5
         print(f"  {i+1}. {scheme.value}")
@@ -68,8 +68,8 @@ def test_color_scheme_cycling():
     print("\nTesting scheme cycling:")
     
     # Start with transgender scheme
-    current_scheme = ColorScheme.TRANSGENDER
-    overlay.set_color_scheme(current_scheme)
+    current_scheme = ColourScheme.TRANSGENDER
+    overlay.set_colour_scheme(current_scheme)
     
     for i in range(3):  # Test a few cycles
         print(f"Step {i+1}: Current scheme = {current_scheme.value}")
@@ -84,11 +84,11 @@ def test_color_scheme_cycling():
         next_scheme = all_schemes[next_index]
         
         # Set the scheme
-        success = overlay.set_color_scheme(next_scheme)
+        success = overlay.set_colour_scheme(next_scheme)
         print(f"         -> Setting to {next_scheme.value}: {'Success' if success else 'Failed'}")
         
         # Verify it was set
-        actual_name = overlay.color_scheme_name
+        actual_name = overlay.colour_scheme_name
         print(f"         -> Actual scheme after setting: {actual_name}")
         print(f"         -> Match: {'✓' if actual_name == next_scheme.value else '✗'}")
         
@@ -98,9 +98,9 @@ def test_color_scheme_cycling():
 
 if __name__ == "__main__":
     test_transition_mode_cycling()
-    test_color_scheme_cycling()
+    test_colour_scheme_cycling()
     
     print("=== Test Summary ===")
     print("If all steps show '✓ Match', then the enum cycling is working correctly!")
     print("The M key should now properly cycle through transition modes.")
-    print("The T key should now properly cycle through color schemes.")
+    print("The T key should now properly cycle through colour schemes.")

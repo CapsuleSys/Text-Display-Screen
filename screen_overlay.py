@@ -2,8 +2,8 @@ import random
 import pygame
 import math
 from typing import List, Tuple, Dict, Optional, Union, Any
-from color_schemes import get_color_scheme, validate_color_scheme
-from config.enums import TransitionMode, ColorScheme
+from colour_schemes import get_colour_scheme, validate_colour_scheme
+from config.enums import TransitionMode, ColourScheme
 from config.settings import Settings
 
 class ScreenOverlay:
@@ -18,7 +18,7 @@ class ScreenOverlay:
         # Store settings reference, create default if none provided
         self.settings = settings if settings is not None else Settings.create_default()
         
-        # Effect layers - now store (intensity, color, timer) tuples for ghosts
+        # Effect layers - now store (intensity, colour, timer) tuples for ghosts
         self.ghost_layer = [[(0.0, (255, 0, 0), 0) for _ in range(grid_width)] for _ in range(grid_height)]
         self.flicker_layer = [[0.0 for _ in range(grid_width)] for _ in range(grid_height)]
         
@@ -30,16 +30,16 @@ class ScreenOverlay:
         self.flicker_chance = 0.0  # Chance for pixel to flicker
         self.flicker_intensity = 0.2  # Intensity of flicker effect
         
-        # Color settings - now supports color schemes
-        self.current_color_scheme = get_color_scheme('classic')
-        self.color_scheme_name = 'classic'
-        self.color_shift_speed = 0.005  # How fast colors shift (radians per frame) - 4x slower
-        self.color_time = 0.0  # Internal timer for color shifting
-        self.flicker_color = (255, 200, 100)  # Warm flicker color
+        # Colour settings - now supports colour schemes
+        self.current_colour_scheme = get_colour_scheme('classic')
+        self.colour_scheme_name = 'classic'
+        self.colour_shift_speed = 0.005  # How fast colours shift (radians per frame) - 4x slower
+        self.colour_time = 0.0  # Internal timer for colour shifting
+        self.flicker_colour = (255, 200, 100)  # Warm flicker colour
         
-        # Color transition mode
-        self.color_transition_mode = TransitionMode.SMOOTH
-        self.snap_duration = 120  # frames to hold each color in snap mode (2 seconds at 60fps)
+        # Colour transition mode
+        self.colour_transition_mode = TransitionMode.SMOOTH
+        self.snap_duration = 120  # frames to hold each colour in snap mode (2 seconds at 60fps)
         
         # Text boundary tracking for spread modes
         self.text_bounds = {
@@ -49,16 +49,16 @@ class ScreenOverlay:
             'max_row': grid_height - 1
         }
         
-        # Color averaging settings
-        self.enable_color_averaging = False
-        self.color_averaging_interval = 30  # frames
+        # Colour averaging settings
+        self.enable_colour_averaging = False
+        self.colour_averaging_interval = 30  # frames
         
         print(f"ScreenOverlay initialized: {grid_width}x{grid_height}")
     
     def update_effects(self, current_grid: List[List[bool]]) -> None:
         """Update all overlay effects based on current screen state"""
-        # Update color shift timer
-        self.color_time += self.color_shift_speed
+        # Update colour shift timer
+        self.colour_time += self.colour_shift_speed
         
         # Update text boundaries for spread modes
         self._update_text_bounds(current_grid)
@@ -66,127 +66,127 @@ class ScreenOverlay:
         self._update_ghost_effects(current_grid)
         self._update_flicker_effects(current_grid)
         
-        # Apply color averaging if enabled (checks individual pixel timers)
-        if self.enable_color_averaging:
-            self._apply_color_averaging()
+        # Apply colour averaging if enabled (checks individual pixel timers)
+        if self.enable_colour_averaging:
+            self._apply_colour_averaging()
     
-    def set_color_scheme(self, scheme: Union[ColorScheme, str]) -> bool:
-        """Set the color scheme for ghost effects. Accepts ColorScheme enum or string. Returns True if successful."""
+    def set_colour_scheme(self, scheme: Union[ColourScheme, str]) -> bool:
+        """Set the colour scheme for ghost effects. Accepts ColourScheme enum or string. Returns True if successful."""
         try:
-            new_scheme = get_color_scheme(scheme)
-            if validate_color_scheme(new_scheme):
-                self.current_color_scheme = new_scheme
-                if isinstance(scheme, ColorScheme):
-                    self.color_scheme_name = scheme.value
+            new_scheme = get_colour_scheme(scheme)
+            if validate_colour_scheme(new_scheme):
+                self.current_colour_scheme = new_scheme
+                if isinstance(scheme, ColourScheme):
+                    self.colour_scheme_name = scheme.value
                 else:
-                    self.color_scheme_name = str(scheme).lower()
-                print(f"Color scheme changed to: {self.color_scheme_name}")
+                    self.colour_scheme_name = str(scheme).lower()
+                print(f"Colour scheme changed to: {self.colour_scheme_name}")
                 return True
             else:
-                print(f"Invalid color scheme format: {scheme}")
+                print(f"Invalid colour scheme format: {scheme}")
                 return False
         except Exception as e:
-            print(f"Error setting color scheme {scheme}: {e}")
+            print(f"Error setting colour scheme {scheme}: {e}")
             return False
     
-    def set_custom_color_scheme(self, colors: List[Tuple[int, int, int]]) -> bool:
-        """Set a custom color scheme. Returns True if successful."""
-        if validate_color_scheme(colors):
-            self.current_color_scheme = colors
-            self.color_scheme_name = 'custom'
-            print(f"Custom color scheme set with {len(colors)} colors")
+    def set_custom_colour_scheme(self, colours: List[Tuple[int, int, int]]) -> bool:
+        """Set a custom colour scheme. Returns True if successful."""
+        if validate_colour_scheme(colours):
+            self.current_colour_scheme = colours
+            self.colour_scheme_name = 'custom'
+            print(f"Custom colour scheme set with {len(colours)} colours")
             return True
         else:
-            print("Invalid custom color scheme format")
+            print("Invalid custom colour scheme format")
             return False
     
-    def set_color_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
-        """Set the color transition mode. Accepts TransitionMode enum or string. Returns True if successful."""
+    def set_colour_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
+        """Set the colour transition mode. Accepts TransitionMode enum or string. Returns True if successful."""
         try:
             if isinstance(mode, TransitionMode):
-                self.color_transition_mode = mode
+                self.colour_transition_mode = mode
                 mode_name = mode.value
             else:
                 mode_lower = str(mode).lower()
-                self.color_transition_mode = TransitionMode.from_string(mode_lower)
+                self.colour_transition_mode = TransitionMode.from_string(mode_lower)
                 mode_name = mode_lower
             
             if snap_duration is not None:
                 self.snap_duration = max(1, snap_duration)
             
-            print(f"Color transition mode set to: {mode_name}")
-            if self.color_transition_mode == TransitionMode.SNAP:
+            print(f"Colour transition mode set to: {mode_name}")
+            if self.colour_transition_mode == TransitionMode.SNAP:
                 print(f"Snap duration: {self.snap_duration} frames")
-            elif self.color_transition_mode == TransitionMode.MIXED:
-                print("Mixed mode: each ghost gets a random color from the scheme")
-            elif self.color_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
-                print("Horizontal spread mode: colors spread horizontally across screen")
-            elif self.color_transition_mode == TransitionMode.SPREAD_VERTICAL:
-                print("Vertical spread mode: colors spread vertically across screen")
+            elif self.colour_transition_mode == TransitionMode.MIXED:
+                print("Mixed mode: each ghost gets a random colour from the scheme")
+            elif self.colour_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
+                print("Horizontal spread mode: colours spread horizontally across screen")
+            elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
+                print("Vertical spread mode: colours spread vertically across screen")
             
             return True
         except Exception as e:
-            print(f"Error setting color transition mode: {e}")
+            print(f"Error setting colour transition mode: {e}")
             print(f"Valid modes: {', '.join(TransitionMode.list_names())}")
             return False
     
-    def _get_current_ghost_color(self) -> Tuple[int, int, int]:
-        """Get the current ghost color based on time and color scheme"""
-        if not self.current_color_scheme:
+    def _get_current_ghost_colour(self) -> Tuple[int, int, int]:
+        """Get the current ghost colour based on time and colour scheme"""
+        if not self.current_colour_scheme:
             return (255, 0, 0)  # Fallback red
         
-        # For single color schemes, just return that color
-        if len(self.current_color_scheme) == 1:
-            return self.current_color_scheme[0]
+        # For single colour schemes, just return that colour
+        if len(self.current_colour_scheme) == 1:
+            return self.current_colour_scheme[0]
         
-        # For multi-color schemes, choose behavior based on transition mode
-        scheme_length = len(self.current_color_scheme)
+        # For multi-colour schemes, choose behaviour based on transition mode
+        scheme_length = len(self.current_colour_scheme)
         
-        if self.color_transition_mode == TransitionMode.SNAP:
-            # Snap mode: hold each color for a specific duration
+        if self.colour_transition_mode == TransitionMode.SNAP:
+            # Snap mode: hold each colour for a specific duration
             total_cycle_time = self.snap_duration * scheme_length
-            frame_in_cycle = int(self.color_time / self.color_shift_speed) % total_cycle_time
-            color_index = frame_in_cycle // self.snap_duration
-            return self.current_color_scheme[color_index % scheme_length]
-        elif self.color_transition_mode in [TransitionMode.SPREAD_HORIZONTAL, TransitionMode.SPREAD_VERTICAL]:
-            # Spread modes: calculate color based on position (use center position as default)
+            frame_in_cycle = int(self.colour_time / self.colour_shift_speed) % total_cycle_time
+            colour_index = frame_in_cycle // self.snap_duration
+            return self.current_colour_scheme[colour_index % scheme_length]
+        elif self.colour_transition_mode in [TransitionMode.SPREAD_HORIZONTAL, TransitionMode.SPREAD_VERTICAL]:
+            # Spread modes: calculate colour based on position (use centre position as default)
             center_row = self.grid_height // 2
             center_col = self.grid_width // 2
-            if self.color_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
-                return self._get_horizontal_spread_color(center_row, center_col)
+            if self.colour_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
+                return self._get_horizontal_spread_colour(center_row, center_col)
             else:
-                return self._get_vertical_spread_color(center_row, center_col)
+                return self._get_vertical_spread_colour(center_row, center_col)
         else:
-            # Smooth mode: smoothly transition between colors
-            color_position = (math.sin(self.color_time) + 1) / 2  # 0 to 1
-            color_index = color_position * (scheme_length - 1)
+            # Smooth mode: smoothly transition between colours
+            colour_position = (math.sin(self.colour_time) + 1) / 2  # 0 to 1
+            colour_index = colour_position * (scheme_length - 1)
             
-            # Get the two adjacent colors to interpolate between
-            lower_index = int(color_index)
+            # Get the two adjacent colours to interpolate between
+            lower_index = int(colour_index)
             upper_index = min(lower_index + 1, scheme_length - 1)
-            blend_factor = color_index - lower_index
+            blend_factor = colour_index - lower_index
             
-            # Interpolate between the two colors
-            color1 = self.current_color_scheme[lower_index]
-            color2 = self.current_color_scheme[upper_index]
+            # Interpolate between the two colours
+            colour1 = self.current_colour_scheme[lower_index]
+            colour2 = self.current_colour_scheme[upper_index]
             
-            r = int(color1[0] * (1 - blend_factor) + color2[0] * blend_factor)
-            g = int(color1[1] * (1 - blend_factor) + color2[1] * blend_factor)
-            b = int(color1[2] * (1 - blend_factor) + color2[2] * blend_factor)
+            r = int(colour1[0] * (1 - blend_factor) + colour2[0] * blend_factor)
+            g = int(colour1[1] * (1 - blend_factor) + colour2[1] * blend_factor)
+            b = int(colour1[2] * (1 - blend_factor) + colour2[2] * blend_factor)
             
             return (r, g, b)
     
-    def _get_random_scheme_color(self) -> Tuple[int, int, int]:
-        """Get a random color from the current color scheme"""
-        if not self.current_color_scheme:
+    def _get_random_scheme_colour(self) -> Tuple[int, int, int]:
+        """Get a random colour from the current colour scheme"""
+        if not self.current_colour_scheme:
             return (255, 0, 0)  # Fallback red
         
-        return random.choice(self.current_color_scheme)
+        return random.choice(self.current_colour_scheme)
     
-    def _get_horizontal_spread_color(self, row: int, col: int) -> Tuple[int, int, int]:
-        """Get color based on horizontal position for horizontal spread mode"""
-        if not self.current_color_scheme or len(self.current_color_scheme) < 2:
-            return self.current_color_scheme[0] if self.current_color_scheme else (255, 0, 0)
+    def _get_horizontal_spread_colour(self, row: int, col: int) -> Tuple[int, int, int]:
+        """Get colour based on horizontal position for horizontal spread mode"""
+        if not self.current_colour_scheme or len(self.current_colour_scheme) < 2:
+            return self.current_colour_scheme[0] if self.current_colour_scheme else (255, 0, 0)
         
         # Calculate horizontal position ratio based on text boundaries
         text_width = self.text_bounds['max_col'] - self.text_bounds['min_col']
@@ -197,29 +197,29 @@ class ScreenOverlay:
             clamped_col = max(self.text_bounds['min_col'], min(self.text_bounds['max_col'], col))
             horizontal_ratio = (clamped_col - self.text_bounds['min_col']) / text_width
         
-        # Map the ratio to color scheme
-        scheme_length = len(self.current_color_scheme)
-        color_position = horizontal_ratio * (scheme_length - 1)
+        # Map the ratio to colour scheme
+        scheme_length = len(self.current_colour_scheme)
+        colour_position = horizontal_ratio * (scheme_length - 1)
         
-        # Get the two adjacent colors to interpolate between
-        lower_index = int(color_position)
+        # Get the two adjacent colours to interpolate between
+        lower_index = int(colour_position)
         upper_index = min(lower_index + 1, scheme_length - 1)
-        blend_factor = color_position - lower_index
+        blend_factor = colour_position - lower_index
         
-        # Interpolate between the two colors
-        color1 = self.current_color_scheme[lower_index]
-        color2 = self.current_color_scheme[upper_index]
+        # Interpolate between the two colours
+        colour1 = self.current_colour_scheme[lower_index]
+        colour2 = self.current_colour_scheme[upper_index]
         
-        r = int(color1[0] * (1 - blend_factor) + color2[0] * blend_factor)
-        g = int(color1[1] * (1 - blend_factor) + color2[1] * blend_factor)
-        b = int(color1[2] * (1 - blend_factor) + color2[2] * blend_factor)
+        r = int(colour1[0] * (1 - blend_factor) + colour2[0] * blend_factor)
+        g = int(colour1[1] * (1 - blend_factor) + colour2[1] * blend_factor)
+        b = int(colour1[2] * (1 - blend_factor) + colour2[2] * blend_factor)
         
         return (r, g, b)
     
-    def _get_vertical_spread_color(self, row: int, col: int) -> Tuple[int, int, int]:
-        """Get color based on vertical position for vertical spread mode"""
-        if not self.current_color_scheme or len(self.current_color_scheme) < 2:
-            return self.current_color_scheme[0] if self.current_color_scheme else (255, 0, 0)
+    def _get_vertical_spread_colour(self, row: int, col: int) -> Tuple[int, int, int]:
+        """Get colour based on vertical position for vertical spread mode"""
+        if not self.current_colour_scheme or len(self.current_colour_scheme) < 2:
+            return self.current_colour_scheme[0] if self.current_colour_scheme else (255, 0, 0)
         
         # Calculate vertical position ratio based on text boundaries
         text_height = self.text_bounds['max_row'] - self.text_bounds['min_row']
@@ -230,31 +230,31 @@ class ScreenOverlay:
             clamped_row = max(self.text_bounds['min_row'], min(self.text_bounds['max_row'], row))
             vertical_ratio = (clamped_row - self.text_bounds['min_row']) / text_height
         
-        # Map the ratio to color scheme
-        scheme_length = len(self.current_color_scheme)
-        color_position = vertical_ratio * (scheme_length - 1)
+        # Map the ratio to colour scheme
+        scheme_length = len(self.current_colour_scheme)
+        colour_position = vertical_ratio * (scheme_length - 1)
         
-        # Get the two adjacent colors to interpolate between
-        lower_index = int(color_position)
+        # Get the two adjacent colours to interpolate between
+        lower_index = int(colour_position)
         upper_index = min(lower_index + 1, scheme_length - 1)
-        blend_factor = color_position - lower_index
+        blend_factor = colour_position - lower_index
         
-        # Interpolate between the two colors
-        color1 = self.current_color_scheme[lower_index]
-        color2 = self.current_color_scheme[upper_index]
+        # Interpolate between the two colours
+        colour1 = self.current_colour_scheme[lower_index]
+        colour2 = self.current_colour_scheme[upper_index]
         
-        r = int(color1[0] * (1 - blend_factor) + color2[0] * blend_factor)
-        g = int(color1[1] * (1 - blend_factor) + color2[1] * blend_factor)
-        b = int(color1[2] * (1 - blend_factor) + color2[2] * blend_factor)
+        r = int(colour1[0] * (1 - blend_factor) + colour2[0] * blend_factor)
+        g = int(colour1[1] * (1 - blend_factor) + colour2[1] * blend_factor)
+        b = int(colour1[2] * (1 - blend_factor) + colour2[2] * blend_factor)
         
         return (r, g, b)
     
-    def _get_weighted_average_color(self, row: int, col: int) -> Tuple[int, int, int]:
-        """Get average color of ghost pixels in a 5x5 area around the given position"""
+    def _get_weighted_average_colour(self, row: int, col: int) -> Tuple[int, int, int]:
+        """Get average colour of ghost pixels in a 5x5 area around the given position"""
         total_r, total_g, total_b = 0.0, 0.0, 0.0
         total_intensity = 0.0
         
-        # Check 5x5 area centered on position
+        # Check 5x5 area centred on position
         for dr in range(-2, 3):  # -2, -1, 0, 1, 2
             for dc in range(-2, 3):
                 check_row = row + dr
@@ -264,17 +264,17 @@ class ScreenOverlay:
                 if not (0 <= check_row < self.grid_height and 0 <= check_col < self.grid_width):
                     continue
                 
-                intensity, color, timer = self.ghost_layer[check_row][check_col]
+                intensity, colour, timer = self.ghost_layer[check_row][check_col]
                 if intensity > 0:
-                    # Weight each color component by its intensity
-                    total_r += color[0] * intensity
-                    total_g += color[1] * intensity
-                    total_b += color[2] * intensity
+                    # Weight each colour component by its intensity
+                    total_r += colour[0] * intensity
+                    total_g += colour[1] * intensity
+                    total_b += colour[2] * intensity
                     total_intensity += intensity
         
-        # If no ghosts found in area, return a random color from scheme
+        # If no ghosts found in area, return a random colour from scheme
         if total_intensity == 0:
-            return self._get_random_scheme_color()
+            return self._get_random_scheme_colour()
         
         # Calculate weighted average
         avg_r = int(total_r / total_intensity)
@@ -283,49 +283,49 @@ class ScreenOverlay:
         
         return (avg_r, avg_g, avg_b)
     
-    def _apply_color_averaging(self) -> None:
-        """Apply color averaging to ghost pixels based on their individual timers"""
-        # Create a new layer to store updated colors (avoid modifying while iterating)
-        new_colors = []
+    def _apply_colour_averaging(self) -> None:
+        """Apply colour averaging to ghost pixels based on their individual timers"""
+        # Create a new layer to store updated colours (avoid modifying while iterating)
+        new_colours = []
         
         for row in range(self.grid_height):
             for col in range(self.grid_width):
-                intensity, current_color, timer = self.ghost_layer[row][col]
+                intensity, current_colour, timer = self.ghost_layer[row][col]
                 
                 # Only update ghosts that exist and have reached their interval
-                if intensity > 0 and timer >= self.color_averaging_interval:
-                    # Calculate average color from neighbors
-                    new_color = self._get_weighted_average_color(row, col)
+                if intensity > 0 and timer >= self.colour_averaging_interval:
+                    # Calculate average colour from neighbours
+                    new_colour = self._get_weighted_average_colour(row, col)
                     # Reset timer for this ghost
-                    new_colors.append((row, col, intensity, new_color, 0))
+                    new_colours.append((row, col, intensity, new_colour, 0))
         
-        # Apply all color updates
-        for row, col, intensity, new_color, new_timer in new_colors:
-            self.ghost_layer[row][col] = (intensity, new_color, new_timer)
+        # Apply all colour updates
+        for row, col, intensity, new_colour, new_timer in new_colours:
+            self.ghost_layer[row][col] = (intensity, new_colour, new_timer)
     
     def _update_ghost_effects(self, current_grid: List[List[bool]]) -> None:
         """Update ghost pixel effects"""
         # Store new ghost pixels to add after processing existing ones
         new_ghosts = []
-        current_color = self._get_current_ghost_color()
+        current_colour = self._get_current_ghost_colour()
         
         # Decay existing ghost pixels and check for spawning
         for row in range(self.grid_height):
             for col in range(self.grid_width):
-                intensity, color, timer = self.ghost_layer[row][col]
+                intensity, colour, timer = self.ghost_layer[row][col]
                 if intensity > 0:
                     # Remove ghost if text pixel becomes active at this location
                     if current_grid[row][col]:
-                        self.ghost_layer[row][col] = (0.0, color, 0)
+                        self.ghost_layer[row][col] = (0.0, colour, 0)
                         continue
                     
-                    # Decay the ghost while preserving its original color and incrementing timer
+                    # Decay the ghost while preserving its original colour and incrementing timer
                     new_intensity = intensity * self.ghost_decay
                     new_timer = timer + 1
                     if new_intensity < self.ghost_min_intensity:
-                        self.ghost_layer[row][col] = (0.0, color, 0)
+                        self.ghost_layer[row][col] = (0.0, colour, 0)
                     else:
-                        self.ghost_layer[row][col] = (new_intensity, color, new_timer)
+                        self.ghost_layer[row][col] = (new_intensity, colour, new_timer)
                         
                         # Check if this ghost spawns additional ghosts
                         if random.random() < self.ghost_spawn_chance:
@@ -343,14 +343,14 @@ class ScreenOverlay:
                                     # Only spawn if no existing ghost OR if new ghost is more intense
                                     existing_intensity = self.ghost_layer[ghost_row][ghost_col][0]
                                     if existing_intensity == 0 or spawn_intensity > existing_intensity:
-                                        # Use parent ghost's color (color averaging happens separately if enabled)
-                                        spawn_color = color
+                                        # Use parent ghost's colour (colour averaging happens separately if enabled)
+                                        spawn_colour = colour
                                         # New ghost starts with timer at 0
-                                        new_ghosts.append((ghost_row, ghost_col, spawn_intensity, spawn_color, 0))
+                                        new_ghosts.append((ghost_row, ghost_col, spawn_intensity, spawn_colour, 0))
         
         # Add new ghost pixels spawned by existing ghosts
-        for row, col, intensity, color, timer in new_ghosts:
-            self.ghost_layer[row][col] = (intensity, color, timer)
+        for row, col, intensity, colour, timer in new_ghosts:
+            self.ghost_layer[row][col] = (intensity, colour, timer)
         
         # Create new ghost pixels from activated pixels (outline effect)
         for row in range(self.grid_height):
@@ -369,24 +369,24 @@ class ScreenOverlay:
                             existing_intensity, existing_color, existing_timer = self.ghost_layer[ghost_row][ghost_col]
                             new_intensity = min(self.settings.ghost_tuning.max_ghost_intensity, existing_intensity + self.settings.ghost_tuning.accumulation_intensity)
                             
-                            # Choose color based on transition mode
-                            if self.color_transition_mode == TransitionMode.MIXED:
-                                # In mixed mode, pick a random color from the scheme for text-spawned ghosts
-                                ghost_color = self._get_random_scheme_color()
-                            elif self.color_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
-                                # In horizontal spread mode, use horizontal position-based color
-                                ghost_color = self._get_horizontal_spread_color(ghost_row, ghost_col)
-                            elif self.color_transition_mode == TransitionMode.SPREAD_VERTICAL:
-                                # In vertical spread mode, use vertical position-based color
-                                ghost_color = self._get_vertical_spread_color(ghost_row, ghost_col)
+                            # Choose colour based on transition mode
+                            if self.colour_transition_mode == TransitionMode.MIXED:
+                                # In mixed mode, pick a random colour from the scheme for text-spawned ghosts
+                                ghost_colour = self._get_random_scheme_colour()
+                            elif self.colour_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
+                                # In horizontal spread mode, use horizontal position-based colour
+                                ghost_colour = self._get_horizontal_spread_colour(ghost_row, ghost_col)
+                            elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
+                                # In vertical spread mode, use vertical position-based colour
+                                ghost_colour = self._get_vertical_spread_colour(ghost_row, ghost_col)
                             else:
-                                # In smooth/snap modes, use the current cycling color
-                                ghost_color = current_color
+                                # In smooth/snap modes, use the current cycling colour
+                                ghost_colour = current_colour
                             
                             # Reset timer when creating new ghost or refreshing existing one
                             new_timer = 0 if existing_intensity == 0 else existing_timer
                             # Always apply since we're adding to existing intensity (making it stronger)
-                            self.ghost_layer[ghost_row][ghost_col] = (new_intensity, ghost_color, new_timer)
+                            self.ghost_layer[ghost_row][ghost_col] = (new_intensity, ghost_colour, new_timer)
     
     def _update_flicker_effects(self, current_grid: List[List[bool]]) -> None:
         """Update flicker effects for activated pixels"""
@@ -409,40 +409,40 @@ class ScreenOverlay:
         
         return positions
     
-    def render_overlay(self, screen: pygame.Surface, base_color: Tuple[int, int, int]) -> None:
+    def render_overlay(self, screen: pygame.Surface, base_colour: Tuple[int, int, int]) -> None:
         """Render overlay effects on top of the base screen"""
-        # Render ghost pixels with their individual colors
+        # Render ghost pixels with their individual colours
         for row in range(self.grid_height):
             for col in range(self.grid_width):
-                intensity, color, timer = self.ghost_layer[row][col]
+                intensity, colour, timer = self.ghost_layer[row][col]
                 if intensity > 0:
-                    self._draw_effect_pixel(screen, row, col, color, intensity)
+                    self._draw_effect_pixel(screen, row, col, colour, intensity)
                 
                 if self.flicker_layer[row][col] > 0:
-                    self._draw_effect_pixel(screen, row, col, self.flicker_color, 
+                    self._draw_effect_pixel(screen, row, col, self.flicker_colour, 
                                           self.flicker_layer[row][col])
     
     def _draw_effect_pixel(self, screen: pygame.Surface, row: int, col: int, 
-                          color: Tuple[int, int, int], intensity: float) -> None:
+                          colour: Tuple[int, int, int], intensity: float) -> None:
         """Draw a single effect pixel with given intensity"""
         x = int(col * self.square_size * self.display_scale)
         y = int(row * self.square_size * self.display_scale)
         width = int(self.square_size * self.display_scale)
         height = int(self.square_size * self.display_scale)
         
-        # Apply intensity to color
-        effect_color = tuple(int(c * intensity) for c in color)
+        # Apply intensity to colour
+        effect_colour = tuple(int(c * intensity) for c in colour)
         
         # Create a surface for alpha blending
         effect_surface = pygame.Surface((width, height))
         effect_surface.set_alpha(int(255 * intensity))
-        effect_surface.fill(effect_color)
+        effect_surface.fill(effect_colour)
         
         screen.blit(effect_surface, (x, y))
     
     def set_ghost_parameters(self, chance: Optional[float] = None, decay: Optional[float] = None, 
                            min_intensity: Optional[float] = None, spawn_chance: Optional[float] = None,
-                           color_shift_speed: Optional[float] = None) -> None:
+                           colour_shift_speed: Optional[float] = None) -> None:
         """Configure ghost effect parameters"""
         if chance is not None:
             self.ghost_chance = max(0.0, min(1.0, chance))
@@ -452,8 +452,8 @@ class ScreenOverlay:
             self.ghost_min_intensity = max(0.0, min(1.0, min_intensity))
         if spawn_chance is not None:
             self.ghost_spawn_chance = max(0.0, min(1.0, spawn_chance))
-        if color_shift_speed is not None:
-            self.color_shift_speed = max(0.0, color_shift_speed)
+        if colour_shift_speed is not None:
+            self.colour_shift_speed = max(0.0, colour_shift_speed)
     
     def set_flicker_parameters(self, chance: Optional[float] = None, intensity: Optional[float] = None) -> None:
         """Configure flicker effect parameters"""
@@ -462,25 +462,25 @@ class ScreenOverlay:
         if intensity is not None:
             self.flicker_intensity = max(0.0, min(1.0, intensity))
     
-    def set_color_averaging_parameters(self, enabled: Optional[bool] = None, interval: Optional[int] = None) -> None:
-        """Configure color averaging parameters"""
+    def set_colour_averaging_parameters(self, enabled: Optional[bool] = None, interval: Optional[int] = None) -> None:
+        """Configure colour averaging parameters"""
         if enabled is not None:
-            self.enable_color_averaging = enabled
-            print(f"Color averaging {'enabled' if enabled else 'disabled'}")
+            self.enable_colour_averaging = enabled
+            print(f"Colour averaging {'enabled' if enabled else 'disabled'}")
         if interval is not None:
-            self.color_averaging_interval = max(1, interval)
-            print(f"Color averaging interval set to {self.color_averaging_interval} frames")
+            self.colour_averaging_interval = max(1, interval)
+            print(f"Colour averaging interval set to {self.colour_averaging_interval} frames")
     
     def clear_effects(self) -> None:
         """Clear all overlay effects"""
         for row in range(self.grid_height):
             for col in range(self.grid_width):
-                self.ghost_layer[row][col] = (0.0, (255, 0, 0), 0)  # Default red color, timer at 0
+                self.ghost_layer[row][col] = (0.0, (255, 0, 0), 0)  # Default red colour, timer at 0
                 self.flicker_layer[row][col] = 0.0
     
     def get_effect_stats(self) -> Dict[str, int]:
         """Get statistics about current effects"""
-        ghost_count = sum(1 for row in self.ghost_layer for intensity, color, timer in row if intensity > 0)
+        ghost_count = sum(1 for row in self.ghost_layer for intensity, colour, timer in row if intensity > 0)
         flicker_count = sum(1 for row in self.flicker_layer for val in row if val > 0)
         
         return {
@@ -488,14 +488,14 @@ class ScreenOverlay:
             'flicker_pixels': flicker_count
         }
     
-    def get_color_scheme_info(self) -> Dict[str, Any]:
-        """Get information about the current color scheme"""
+    def get_colour_scheme_info(self) -> Dict[str, Any]:
+        """Get information about the current colour scheme"""
         return {
-            'name': self.color_scheme_name,
-            'colors': self.current_color_scheme,
-            'color_count': len(self.current_color_scheme),
-            'transition_mode': self.color_transition_mode.value if isinstance(self.color_transition_mode, TransitionMode) else self.color_transition_mode,
-            'snap_duration': self.snap_duration if self.color_transition_mode == TransitionMode.SNAP else None
+            'name': self.colour_scheme_name,
+            'colours': self.current_colour_scheme,
+            'colour_count': len(self.current_colour_scheme),
+            'transition_mode': self.colour_transition_mode.value if isinstance(self.colour_transition_mode, TransitionMode) else self.colour_transition_mode,
+            'snap_duration': self.snap_duration if self.colour_transition_mode == TransitionMode.SNAP else None
         }
     
     def _update_text_bounds(self, current_grid: List[List[bool]]) -> None:

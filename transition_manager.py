@@ -45,19 +45,19 @@ class TransitionManager:
             self.last_text_selection_mtime = os.path.getmtime(self.text_file_selection_path)
         
         # Effect transition cycling state
-        self.color_scheme_order_indices = []
-        self.current_color_scheme_position = 0
-        self._last_color_scheme_setting = self.settings.transition.transition_color_scheme
-        self._last_color_scheme_order = self.settings.transition.color_scheme_order
+        self.colour_scheme_order_indices = []
+        self.current_colour_scheme_position = 0
+        self._last_colour_scheme_setting = self.settings.transition.transition_colour_scheme
+        self._last_colour_scheme_order = self.settings.transition.colour_scheme_order
         
         self.transition_mode_order_indices = []
         self.current_transition_mode_position = 0
-        self._last_transition_mode_setting = self.settings.transition.transition_color_mode
-        self._last_transition_mode_order = self.settings.transition.color_mode_order
+        self._last_transition_mode_setting = self.settings.transition.transition_colour_mode
+        self._last_transition_mode_order = self.settings.transition.colour_mode_order
         
         # Initialize effect order lists
-        self._initialize_color_scheme_order()
-        self._initialize_transition_mode_order()
+        self._initialise_colour_scheme_order()
+        self._initialise_transition_mode_order()
         
         # Callbacks for custom behavior
         self.on_text_change: Optional[Callable[[int], None]] = None
@@ -158,31 +158,31 @@ class TransitionManager:
         self.current_text_block = next_block
         return next_block
     
-    def _initialize_color_scheme_order(self) -> None:
-        """Initialize the color scheme order based on current settings"""
-        from config.enums import ColorScheme
+    def _initialise_colour_scheme_order(self) -> None:
+        """Initialise the colour scheme order based on current settings"""
+        from config.enums import ColourScheme
         
-        # Create list of all color scheme enum values
-        self.color_scheme_order_indices = list(ColorScheme)
+        # Create list of all colour scheme enum values
+        self.colour_scheme_order_indices = list(ColourScheme)
         
         # Apply ordering based on order mode
-        if self.settings.transition.color_scheme_order == "random":
-            random.shuffle(self.color_scheme_order_indices)
-            print(f"Color scheme order shuffled: {[s.value for s in self.color_scheme_order_indices[:5]]}...")
+        if self.settings.transition.colour_scheme_order == "random":
+            random.shuffle(self.colour_scheme_order_indices)
+            print(f"Colour scheme order shuffled: {[s.value for s in self.colour_scheme_order_indices[:5]]}...")
         else:
-            print(f"Color scheme order sequential: {len(self.color_scheme_order_indices)} schemes")
+            print(f"Colour scheme order sequential: {len(self.colour_scheme_order_indices)} schemes")
         
-        self.current_color_scheme_position = 0
+        self.current_colour_scheme_position = 0
     
-    def _initialize_transition_mode_order(self) -> None:
-        """Initialize the transition mode order based on current settings"""
+    def _initialise_transition_mode_order(self) -> None:
+        """Initialise the transition mode order based on current settings"""
         from config.enums import TransitionMode
         
         # Create list of all transition mode enum values
         self.transition_mode_order_indices = list(TransitionMode)
         
         # Apply ordering based on order mode
-        if self.settings.transition.color_mode_order == "random":
+        if self.settings.transition.colour_mode_order == "random":
             random.shuffle(self.transition_mode_order_indices)
             print(f"Transition mode order shuffled: {[m.value for m in self.transition_mode_order_indices]}")
         else:
@@ -190,26 +190,26 @@ class TransitionManager:
         
         self.current_transition_mode_position = 0
     
-    def _update_color_scheme_order_for_mode_change(self, new_order_mode: str) -> None:
-        """Update color scheme order when order mode changes via GUI"""
-        from config.enums import ColorScheme
+    def _update_colour_scheme_order_for_mode_change(self, new_order_mode: str) -> None:
+        """Update colour scheme order when order mode changes via GUI"""
+        from config.enums import ColourScheme
         
-        old_order_mode = self._last_color_scheme_order
+        old_order_mode = self._last_colour_scheme_order
         
         # Only change order if the mode actually changed
         if new_order_mode != old_order_mode:
-            self.color_scheme_order_indices = list(ColorScheme)
+            self.colour_scheme_order_indices = list(ColourScheme)
             
             if new_order_mode == "random":
-                random.shuffle(self.color_scheme_order_indices)
-                print(f"Color scheme order changed to random: {[s.value for s in self.color_scheme_order_indices[:5]]}...")
+                random.shuffle(self.colour_scheme_order_indices)
+                print(f"Colour scheme order changed to random: {[s.value for s in self.colour_scheme_order_indices[:5]]}...")
             else:
-                print(f"Color scheme order changed to sequential")
+                print(f"Colour scheme order changed to sequential")
             
             # Reset position to start
-            self.current_color_scheme_position = 0
+            self.current_colour_scheme_position = 0
         
-        self._last_color_scheme_order = new_order_mode
+        self._last_colour_scheme_order = new_order_mode
     
     def _update_transition_mode_order_for_mode_change(self, new_order_mode: str) -> None:
         """Update transition mode order when order mode changes via GUI"""
@@ -243,40 +243,40 @@ class TransitionManager:
                 # File was modified, load and check effect transition settings
                 current_settings = Settings.load_from_file(self.settings_file_path)
                 
-                # Check color scheme transition setting changes
-                current_color_scheme_enabled = current_settings.transition.transition_color_scheme
-                current_color_scheme_order = current_settings.transition.color_scheme_order
+                # Check Colour scheme transition setting changes
+                current_color_scheme_enabled = current_settings.transition.transition_colour_scheme
+                current_color_scheme_order = current_settings.transition.colour_scheme_order
                 
-                if current_color_scheme_enabled != self._last_color_scheme_setting:
-                    print(f"[EFFECT] Color scheme transition: {self._last_color_scheme_setting} -> {current_color_scheme_enabled}")
-                    self.settings.transition.transition_color_scheme = current_color_scheme_enabled
-                    self._last_color_scheme_setting = current_color_scheme_enabled
+                if current_color_scheme_enabled != self._last_colour_scheme_setting:
+                    print(f"[EFFECT] Colour scheme transition: {self._last_colour_scheme_setting} -> {current_color_scheme_enabled}")
+                    self.settings.transition.transition_colour_scheme = current_color_scheme_enabled
+                    self._last_colour_scheme_setting = current_color_scheme_enabled
                     
                     # Initialize order list if just enabled
                     if current_color_scheme_enabled:
-                        self._initialize_color_scheme_order()
+                        self._initialise_colour_scheme_order()
                 
-                if current_color_scheme_order != self._last_color_scheme_order:
-                    print(f"[EFFECT] Color scheme order: {self._last_color_scheme_order} -> {current_color_scheme_order}")
-                    self.settings.transition.color_scheme_order = current_color_scheme_order
-                    self._update_color_scheme_order_for_mode_change(current_color_scheme_order)
+                if current_color_scheme_order != self._last_colour_scheme_order:
+                    print(f"[EFFECT] Colour scheme order: {self._last_colour_scheme_order} -> {current_color_scheme_order}")
+                    self.settings.transition.colour_scheme_order = current_color_scheme_order
+                    self._update_colour_scheme_order_for_mode_change(current_color_scheme_order)
                 
                 # Check transition mode setting changes
-                current_transition_mode_enabled = current_settings.transition.transition_color_mode
-                current_transition_mode_order = current_settings.transition.color_mode_order
+                current_transition_mode_enabled = current_settings.transition.transition_colour_mode
+                current_transition_mode_order = current_settings.transition.colour_mode_order
                 
                 if current_transition_mode_enabled != self._last_transition_mode_setting:
                     print(f"[EFFECT] Transition mode transition: {self._last_transition_mode_setting} -> {current_transition_mode_enabled}")
-                    self.settings.transition.transition_color_mode = current_transition_mode_enabled
+                    self.settings.transition.transition_colour_mode = current_transition_mode_enabled
                     self._last_transition_mode_setting = current_transition_mode_enabled
                     
                     # Initialize order list if just enabled
                     if current_transition_mode_enabled:
-                        self._initialize_transition_mode_order()
+                        self._initialise_transition_mode_order()
                 
                 if current_transition_mode_order != self._last_transition_mode_order:
                     print(f"[EFFECT] Transition mode order: {self._last_transition_mode_order} -> {current_transition_mode_order}")
-                    self.settings.transition.color_mode_order = current_transition_mode_order
+                    self.settings.transition.colour_mode_order = current_transition_mode_order
                     self._update_transition_mode_order_for_mode_change(current_transition_mode_order)
                 
         except Exception as e:
@@ -403,43 +403,43 @@ class TransitionManager:
     def _apply_effect_transitions(self) -> None:
         """Apply effect transitions before text changes (if enabled)"""
         
-        # 1. COLOR SCHEME TRANSITION
-        if self.settings.transition.transition_color_scheme:
-            if self.settings.transition.color_scheme_order == "sequential":
-                # Get next color scheme from order list
-                if not self.color_scheme_order_indices:
-                    self._initialize_color_scheme_order()
+        # 1. Colour scheme TRANSITION
+        if self.settings.transition.transition_colour_scheme:
+            if self.settings.transition.colour_scheme_order == "sequential":
+                # Get next Colour scheme from order list
+                if not self.colour_scheme_order_indices:
+                    self._initialise_colour_scheme_order()
                 
-                next_scheme = self.color_scheme_order_indices[self.current_color_scheme_position]
-                self.current_color_scheme_position = (self.current_color_scheme_position + 1) % len(self.color_scheme_order_indices)
+                next_scheme = self.colour_scheme_order_indices[self.current_colour_scheme_position]
+                self.current_colour_scheme_position = (self.current_colour_scheme_position + 1) % len(self.colour_scheme_order_indices)
                 
                 # Reshuffle on cycle completion if in random mode
-                if self.current_color_scheme_position == 0 and self.settings.transition.color_scheme_order == "random":
-                    random.shuffle(self.color_scheme_order_indices)
-                    print(f"[EFFECT] Reshuffled color scheme order for new cycle")
+                if self.current_colour_scheme_position == 0 and self.settings.transition.colour_scheme_order == "random":
+                    random.shuffle(self.colour_scheme_order_indices)
+                    print(f"[EFFECT] Reshuffled Colour scheme order for new cycle")
                 
-                print(f"[EFFECT] Sequential color scheme: {next_scheme.value}")
+                print(f"[EFFECT] Sequential Colour scheme: {next_scheme.value}")
             else:  # random
-                # Pick random color scheme
-                from config.enums import ColorScheme
-                next_scheme = random.choice(list(ColorScheme))
-                print(f"[EFFECT] Random color scheme: {next_scheme.value}")
+                # Pick random Colour scheme
+                from config.enums import ColourScheme
+                next_scheme = random.choice(list(ColourScheme))
+                print(f"[EFFECT] Random Colour scheme: {next_scheme.value}")
             
             # Apply to displayer
-            self.displayer.set_ghost_color_scheme(next_scheme)
+            self.displayer.set_ghost_colour_scheme(next_scheme)
         
         # 2. TRANSITION MODE TRANSITION
-        if self.settings.transition.transition_color_mode:
-            if self.settings.transition.color_mode_order == "sequential":
+        if self.settings.transition.transition_colour_mode:
+            if self.settings.transition.colour_mode_order == "sequential":
                 # Get next transition mode from order list
                 if not self.transition_mode_order_indices:
-                    self._initialize_transition_mode_order()
+                    self._initialise_transition_mode_order()
                 
                 next_mode = self.transition_mode_order_indices[self.current_transition_mode_position]
                 self.current_transition_mode_position = (self.current_transition_mode_position + 1) % len(self.transition_mode_order_indices)
                 
                 # Reshuffle on cycle completion if in random mode
-                if self.current_transition_mode_position == 0 and self.settings.transition.color_mode_order == "random":
+                if self.current_transition_mode_position == 0 and self.settings.transition.colour_mode_order == "random":
                     random.shuffle(self.transition_mode_order_indices)
                     print(f"[EFFECT] Reshuffled transition mode order for new cycle")
                 
@@ -451,7 +451,7 @@ class TransitionManager:
                 print(f"[EFFECT] Random transition mode: {next_mode.value}")
             
             # Apply to displayer
-            self.displayer.set_color_transition_mode(next_mode)
+            self.displayer.set_colour_transition_mode(next_mode)
         
         # 3. GHOST PARAMETERS TRANSITION
         if self.settings.transition.transition_ghost_params:

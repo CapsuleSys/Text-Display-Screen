@@ -2,10 +2,10 @@
 Demonstration of the new enum-based settings system.
 
 This script shows how to use the type-safe enum system to configure
-display settings, color schemes, and transition modes.
+display settings, colour schemes, and transition modes.
 """
 
-from config.enums import DisplayType, ColorScheme, TransitionMode, OverlayEffect
+from config.enums import DisplayType, ColourScheme, TransitionMode, OverlayEffect
 from config.settings import Settings, create_transgender_pride_settings, create_demo_settings, create_performance_settings
 
 
@@ -18,9 +18,9 @@ def demo_enum_usage():
     for display_type in DisplayType:
         print(f"  - {display_type.name}: {display_type}")
     
-    # Color schemes
-    print(f"\nAvailable Color Schemes ({len(ColorScheme)} total):")
-    for i, scheme in enumerate(ColorScheme):
+    # Colour schemes
+    print(f"\nAvailable Colour Schemes ({len(ColourScheme)} total):")
+    for i, scheme in enumerate(ColourScheme):
         print(f"  {i+1:2d}. {scheme.value}")
     
     # Transition modes
@@ -42,23 +42,23 @@ def demo_settings_creation():
     print("1. Default Settings:")
     default_settings = Settings.create_default()
     print(f"   Display Type: {default_settings.display.display_type.name}")
-    print(f"   Color Scheme: {default_settings.overlay.color_scheme.value}")
-    print(f"   Transition Mode: {default_settings.overlay.color_transition_mode.value}")
+    print(f"   Colour Scheme: {default_settings.overlay.colour_scheme.value}")
+    print(f"   Transition Mode: {default_settings.overlay.colour_transition_mode.value}")
     
     # Method 2: Preset transgender pride settings
     print("\n2. Transgender Pride Settings:")
     trans_settings = create_transgender_pride_settings()
     print(f"   Display Type: {trans_settings.display.display_type.name}")
-    print(f"   Color Scheme: {trans_settings.overlay.color_scheme.value}")
-    print(f"   Transition Mode: {trans_settings.overlay.color_transition_mode.value}")
+    print(f"   Colour Scheme: {trans_settings.overlay.colour_scheme.value}")
+    print(f"   Transition Mode: {trans_settings.overlay.colour_transition_mode.value}")
     print(f"   Ghost Chance: {trans_settings.overlay.ghost_chance}")
     
     # Method 3: Demo settings for visual impact
     print("\n3. Demo Settings (High Visual Impact):")
     demo_settings = create_demo_settings()
     print(f"   Display Type: {demo_settings.display.display_type.name}")
-    print(f"   Color Scheme: {demo_settings.overlay.color_scheme.value}")
-    print(f"   Transition Mode: {demo_settings.overlay.color_transition_mode.value}")
+    print(f"   Colour Scheme: {demo_settings.overlay.colour_scheme.value}")
+    print(f"   Transition Mode: {demo_settings.overlay.colour_transition_mode.value}")
     print(f"   Ghost Chance: {demo_settings.overlay.ghost_chance}")
     print(f"   Flicker Chance: {demo_settings.overlay.flicker_chance}")
     
@@ -83,8 +83,8 @@ def demo_custom_settings():
     custom.display.grid_height = 40
     custom.display.fps = 30
     
-    custom.overlay.color_scheme = ColorScheme.RAINBOW
-    custom.overlay.color_transition_mode = TransitionMode.SNAP
+    custom.overlay.colour_scheme = ColourScheme.RAINBOW
+    custom.overlay.colour_transition_mode = TransitionMode.SNAP
     custom.overlay.ghost_chance = 0.25
     custom.overlay.snap_duration = 60  # 1 second at 60fps
     
@@ -94,8 +94,8 @@ def demo_custom_settings():
     print("Custom Settings Created:")
     print(f"   Grid Size: {custom.display.grid_width}x{custom.display.grid_height}")
     print(f"   FPS: {custom.display.fps}")
-    print(f"   Color Scheme: {custom.overlay.color_scheme.value}")
-    print(f"   Transition Mode: {custom.overlay.color_transition_mode.value}")
+    print(f"   Colour Scheme: {custom.overlay.colour_scheme.value}")
+    print(f"   Transition Mode: {custom.overlay.colour_transition_mode.value}")
     print(f"   Snap Duration: {custom.overlay.snap_duration} frames")
     print(f"   Transition Speed: {custom.transition.transition_speed} pixels/frame")
     
@@ -112,19 +112,19 @@ def demo_enum_string_conversion():
     
     # Converting from strings (backward compatibility)
     print("Converting from strings:")
-    color_from_string = ColorScheme.from_string("transgender")
-    print(f"   'transgender' -> {color_from_string.value}")
+    colour_from_string = ColourScheme.from_string("transgender")
+    print(f"   'transgender' -> {colour_from_string.value}")
     
     mode_from_string = TransitionMode.from_string("spread_horizontal")
     print(f"   'spread_horizontal' -> {mode_from_string.value}")
     
     # Invalid string handling
-    invalid_color = ColorScheme.from_string("invalid_scheme")
-    print(f"   'invalid_scheme' -> {invalid_color.value} (fallback to default)")
+    invalid_colour = ColourScheme.from_string("invalid_scheme")
+    print(f"   'invalid_scheme' -> {invalid_colour.value} (fallback to default)")
     
     # Converting to strings
     print("\nConverting to strings:")
-    rainbow_scheme = ColorScheme.RAINBOW
+    rainbow_scheme = ColourScheme.RAINBOW
     print(f"   {rainbow_scheme} -> '{rainbow_scheme.value}'")
     
     smooth_mode = TransitionMode.SMOOTH
@@ -137,8 +137,8 @@ def demo_file_operations():
     
     # Create some custom settings
     custom = Settings.create_default()
-    custom.overlay.color_scheme = ColorScheme.BISEXUAL
-    custom.overlay.color_transition_mode = TransitionMode.SPREAD_VERTICAL
+    custom.overlay.colour_scheme = ColourScheme.BISEXUAL
+    custom.overlay.colour_transition_mode = TransitionMode.SPREAD_VERTICAL
     custom.display.fps = 45
     
     # Save to file
@@ -150,13 +150,13 @@ def demo_file_operations():
     if success:
         loaded_settings = Settings.load_from_file(filename)
         print("Loaded settings:")
-        print(f"   Color Scheme: {loaded_settings.overlay.color_scheme.value}")
-        print(f"   Transition Mode: {loaded_settings.overlay.color_transition_mode.value}")
+        print(f"   Colour Scheme: {loaded_settings.overlay.colour_scheme.value}")
+        print(f"   Transition Mode: {loaded_settings.overlay.colour_transition_mode.value}")
         print(f"   FPS: {loaded_settings.display.fps}")
         
         # Verify they match
-        schemes_match = loaded_settings.overlay.color_scheme == custom.overlay.color_scheme
-        modes_match = loaded_settings.overlay.color_transition_mode == custom.overlay.color_transition_mode
+        schemes_match = loaded_settings.overlay.colour_scheme == custom.overlay.colour_scheme
+        modes_match = loaded_settings.overlay.colour_transition_mode == custom.overlay.colour_transition_mode
         fps_match = loaded_settings.display.fps == custom.display.fps
         
         print(f"   Settings match original: {schemes_match and modes_match and fps_match}")
