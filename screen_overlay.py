@@ -9,7 +9,7 @@ from config.settings import Settings
 class ScreenOverlay:
     def __init__(self, grid_width: int, grid_height: int, square_size: int, display_scale: float = 1.0, 
                  settings: Optional[Settings] = None):
-        """Initialize the screen overlay system"""
+        """Initialise the screen overlay system"""
         self.grid_width = grid_width
         self.grid_height = grid_height
         self.square_size = square_size

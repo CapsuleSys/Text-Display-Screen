@@ -7,7 +7,7 @@ import os
 
 def animate_example():
     try:
-        # Initialize pygame first
+        # Initialise pygame first
         pygame.init()
         print("Pygame initialized successfully")
         

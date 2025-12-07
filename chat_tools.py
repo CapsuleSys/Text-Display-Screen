@@ -161,29 +161,29 @@ class ChatTools:
         """
         timestamp = datetime.now().strftime("%H:%M:%S")
         
-        # Color coding based on level
-        level_colors = {
+        # Colour coding based on level
+        level_colours = {
             "ERROR": "red",
             "WARNING": "orange",
             "SUCCESS": "green",
             "CHAT": "black",
             "INFO": "blue"
         }
-        color = level_colors.get(level, "black")
+        colour = level_colours.get(level, "black")
         
         formatted_message = f"[{timestamp}] [{level}] {message}\n"
         
-        # Enable text widget, insert message with color, disable again
+        # Enable text widget, insert message with colour, disable again
         self.log_text.config(state=tk.NORMAL)
         
-        # Insert with tag for coloring
+        # Insert with tag for colouring
         start_pos = self.log_text.index(tk.END)
         self.log_text.insert(tk.END, formatted_message)
         end_pos = self.log_text.index(tk.END)
         
-        # Apply color tag to the line
+        # Apply colour tag to the line
         self.log_text.tag_add(level, start_pos, end_pos)
-        self.log_text.tag_config(level, foreground=color)
+        self.log_text.tag_config(level, foreground=colour)
         
         self.log_text.see(tk.END)  # Auto-scroll to bottom
         self.log_text.config(state=tk.DISABLED)

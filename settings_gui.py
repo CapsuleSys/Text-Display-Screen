@@ -175,7 +175,7 @@ class SettingsGUI:
             row=row, column=0, sticky="w", padx=5, pady=(15, 5))
         row += 1
         
-        self.file_info_label = ttk.Label(frame, text="Loading...", foreground="gray")
+        self.file_info_label = ttk.Label(frame, text="Loading...", foreground="grey")
         self.file_info_label.grid(row=row, column=0, columnspan=2, sticky="w", padx=5, pady=5)
         row += 1
         
@@ -327,7 +327,7 @@ class SettingsGUI:
         row += 1
         
         ttk.Label(frame, text="Ghost colours periodically update to match average of 5x5 neighbours",
-                 font=("TkDefaultFont", 8), foreground="gray").grid(
+                 font=("TkDefaultFont", 8), foreground="grey").grid(
             row=row, column=0, columnspan=3, sticky="w", padx=5, pady=(0, 5))
         row += 1
         
@@ -801,7 +801,7 @@ class SettingsGUI:
         # Status label above buttons (fixed position)
         status_frame = ttk.Frame(self.root)
         status_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(5, 0))
-        self.status_label = ttk.Label(status_frame, text="Ready", foreground="gray")
+        self.status_label = ttk.Label(status_frame, text="Ready", foreground="grey")
         self.status_label.pack(side="left")
         
         # Button frame below status
@@ -1118,7 +1118,7 @@ class SettingsGUI:
         if self.status_label:
             self.status_label.config(text=message, foreground=colour)
             # Clear status after 3 seconds
-            self.root.after(3000, lambda: self.status_label.config(text="Ready", foreground="gray") if self.status_label else None)
+            self.root.after(3000, lambda: self.status_label.config(text="Ready", foreground="grey") if self.status_label else None)
     
     def _get_available_text_files(self) -> list[str]:
         """Get list of available text files."""

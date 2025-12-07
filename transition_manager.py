@@ -59,17 +59,17 @@ class TransitionManager:
         self._last_transition_mode_setting = self.settings.transition.transition_colour_mode
         self._last_transition_mode_order = self.settings.transition.colour_mode_order
         
-        # Initialize effect order lists
+        # Initialise effect order lists
         self._initialise_colour_scheme_order()
         self._initialise_transition_mode_order()
         
         # Callbacks for custom behavior
         self.on_text_change: Optional[Callable[[int], None]] = None
         
-        print("TransitionManager initialized")
+        print("TransitionManager initialised")
     
-    def _initialize_text_order(self) -> None:
-        """Initialize or regenerate the text order based on current settings"""
+    def _initialise_text_order(self) -> None:
+        """Initialise or regenerate the text order based on current settings"""
         if not self.displayer.text_content:
             self.text_order_indices = []
             return
@@ -201,7 +201,7 @@ class TransitionManager:
     def _get_next_text_block(self) -> int:
         """Get the next text block index according to current ordering (shuffled or sequential)"""
         if not self.text_order_indices:
-            self._initialize_text_order()
+            self._initialise_text_order()
             
         if not self.text_order_indices:
             return 0  # Fallback if no text content
@@ -345,8 +345,8 @@ class TransitionManager:
                     self.last_file_mtime = current_mtime
                     print(f"Successfully reloaded {len(self.displayer.text_content)} text blocks")
                     
-                    # Reinitialize text order with new content
-                    self._initialize_text_order()
+                    # Reinitialise text order with new content
+                    self._initialise_text_order()
                     
                 except Exception as e:
                     print(f"Error reloading text file: {e}")
@@ -393,8 +393,8 @@ class TransitionManager:
                         # Load new text file
                         self.displayer.load_text_file(new_text_file)
                         
-                        # Reinitialize text order with new file content
-                        self._initialize_text_order()
+                        # Reinitialise text order with new file content
+                        self._initialise_text_order()
                         
                         # Start with first text block in the order
                         first_block = self.text_order_indices[0] if self.text_order_indices else 0
@@ -613,8 +613,8 @@ class TransitionManager:
     def start_initial_display(self) -> None:
         """Start the initial display with first text block"""
         if self.displayer.text_content:
-            # Initialize text order first
-            self._initialize_text_order()
+            # Initialise text order first
+            self._initialise_text_order()
             
             # Set initial state (empty grid)
             for row in range(self.displayer.grid_height):

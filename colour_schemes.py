@@ -57,7 +57,7 @@ COLOUR_SCHEMES = {
     
     'asexual': [
         (0, 0, 0),        # Black
-        (163, 163, 163),  # Gray
+        (163, 163, 163),  # Grey
         (255, 255, 255),  # White
         (128, 0, 128),    # Purple
     ],
@@ -66,7 +66,7 @@ COLOUR_SCHEMES = {
         (61, 165, 66),    # Green
         (167, 211, 121),  # Light green
         (255, 255, 255),  # White
-        (169, 169, 169),  # Gray
+        (169, 169, 169),  # Grey
         (0, 0, 0),        # Black
     ],
     
@@ -148,7 +148,7 @@ COLOUR_SCHEMES = {
         (0, 0, 0),        # Black
         (0, 0, 0),        # Black
         (0, 0, 0),        # Black
-        (130, 130, 130),  # Medium gray
+        (130, 130, 130),  # Medium grey
     ],
     "yellowbeam": [
         (45, 45, 45),
@@ -197,16 +197,53 @@ def list_colour_scheme_enums() -> List[ColourScheme]:
     return list(ColourScheme)
 
 
-def validate_colour_scheme(colours) -> bool:
-    """Validate that a colour scheme is properly formatted."""
+def validate_colour_scheme(
+    colours: List[Tuple[int, int, int]],
+    raise_on_error: bool = False
+) -> bool:
+    """Validate that a colour scheme is properly formatted.
+    
+    Args:
+        colours: List of RGB colour tuples to validate
+        raise_on_error: If True, raise ValueError with details instead of returning False
+        
+    Returns:
+        True if colour scheme is valid, False otherwise
+        
+    Raises:
+        ValueError: If raise_on_error=True and validation fails
+    """
+    # Check if colours is a list
     if not isinstance(colours, list):
+        if raise_on_error:
+            raise ValueError(f"Colour scheme must be list, got {type(colours).__name__}")
         return False
     
-    for colour in colours:
-        if not isinstance(colour, tuple) or len(colour) != 3:
+    # Check each colour tuple
+    for i, colour in enumerate(colours):
+        # Check if tuple
+        if not isinstance(colour, tuple):
+            if raise_on_error:
+                raise ValueError(f"Colour {i} must be tuple, got {type(colour).__name__}")
             return False
-        if not all(isinstance(c, int) and 0 <= c <= 255 for c in colour):
+        
+        # Check tuple length
+        if len(colour) != 3:
+            if raise_on_error:
+                raise ValueError(f"Colour {i} must have 3 values (RGB), got {len(colour)}")
             return False
+        
+        # Check RGB values
+        for j, component in enumerate(colour):
+            if not isinstance(component, int):
+                if raise_on_error:
+                    raise ValueError(f"Colour {i} component {j} must be int, got {type(component).__name__}")
+                return False
+            
+            if not (0 <= component <= 255):
+                if raise_on_error:
+                    raise ValueError(f"Colour {i} component {j} must be 0-255, got {component}")
+                return False
     
     return True
 

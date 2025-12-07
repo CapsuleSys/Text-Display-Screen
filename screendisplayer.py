@@ -48,7 +48,7 @@ class ScreenDisplayer:
             'magenta': (255, 0, 255)
         }
         
-        # Initialize grid (0 = black/off, 1 = white/on by default)
+        # Initialise grid (0 = black/off, 1 = white/on by default)
         self.grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
         self.selected_colour = self.colours['black']  # Changed from white to black
         self.text_content = []  # Store loaded text blocks
