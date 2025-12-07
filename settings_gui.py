@@ -22,7 +22,7 @@ from config.enums import DisplayType, ColourScheme, TransitionMode, OverlayEffec
 class SettingsGUI:
     """Main settings GUI application with tabbed interface."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.root = tk.Tk()
         self.settings = Settings.create_default()
         self.widget_bindings = {}  # Map widget -> (settings_path, converter)
@@ -32,7 +32,7 @@ class SettingsGUI:
         self._create_tabs()
         self._load_current_settings()
         
-    def _setup_window(self):
+    def _setup_window(self) -> None:
         """Configure the main application window."""
         self.root.title("Text Display Screen - Settings")
         self.root.geometry("600x650")
@@ -44,8 +44,82 @@ class SettingsGUI:
         # Configure grid
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
+    
+    def _create_slider_with_label(
+        self,
+        parent: tk.Frame | ttk.Frame | ttk.LabelFrame,
+        row: int,
+        label_text: str,
+        variable: tk.DoubleVar | tk.IntVar,
+        from_: float,
+        to: float,
+        settings_path: str,
+        converter: type,
+        format_str: str = "{:.3f}",
+        column_offset: int = 0,
+        label_padx: int = 5,
+        pady: int = 5
+    ) -> int:
+        """Create a slider control with label and live value display.
         
-    def _create_tabs(self):
+        This helper eliminates the duplicate pattern of creating sliders with
+        labels and live value updates that appears 20+ times in this file.
+        
+        Args:
+            parent: Parent frame to contain the slider
+            row: Grid row to place slider in
+            label_text: Text for the slider label
+            variable: tkinter variable bound to the slider
+            from_: Minimum slider value
+            to: Maximum slider value
+            settings_path: Dot-separated path for settings binding
+            converter: Type converter function (int, float, etc.)
+            format_str: Format string for value display (default: "{:.3f}")
+            column_offset: Column offset for positioning (default: 0)
+            label_padx: Horizontal padding for label (default: 5, use 20 for indented sliders)
+            pady: Vertical padding (default: 5, use 2 for compact layouts)
+        
+        Returns:
+            Next row number (row + 1)
+        """
+        # Create label
+        ttk.Label(parent, text=label_text).grid(
+            row=row, column=column_offset, sticky="w", padx=label_padx, pady=pady
+        )
+        
+        # Create slider
+        slider = ttk.Scale(
+            parent,
+            from_=from_,
+            to=to,
+            orient="horizontal",
+            variable=variable,
+            length=200
+        )
+        slider.grid(row=row, column=column_offset + 1, sticky="w", pady=pady)
+        
+        # Create value label
+        value_label = ttk.Label(parent, text="")
+        value_label.grid(row=row, column=column_offset + 2, sticky="w", padx=5)
+        
+        # Create update function for live value display
+        def update_label(*args):
+            try:
+                value = variable.get()
+                value_label.config(text=format_str.format(value))
+            except (tk.TclError, ValueError):
+                value_label.config(text="--")
+        
+        # Bind update function and call once to set initial value
+        variable.trace_add('write', update_label)
+        update_label()
+        
+        # Bind widget to settings path
+        self._bind_widget(slider, settings_path, converter)
+        
+        return row + 1
+        
+    def _create_tabs(self) -> None:
         """Create the tabbed interface with all settings categories."""
         # Create notebook for tabs
         self.notebook = ttk.Notebook(self.root)
@@ -72,7 +146,7 @@ class SettingsGUI:
         # Create control buttons at bottom
         self._create_control_buttons()
         
-    def _create_display_tab(self):
+    def _create_display_tab(self) -> None:
         """Create the Text Files tab content."""
         frame = self.display_frame
         row = 0
@@ -141,7 +215,7 @@ class SettingsGUI:
         self._bind_widget(shuffle_check, "transition.shuffle_text_order", bool)
         row += 1
         
-    def _create_effects_tab(self):
+    def _create_effects_tab(self) -> None:
         """Create the Visual Effects tab content."""
         frame = self.effects_frame
         row = 0
@@ -183,46 +257,20 @@ class SettingsGUI:
         row += 1
         
         # Ghost Chance
-        ttk.Label(frame, text="Ghost Chance:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
         self.ghost_chance_var = tk.DoubleVar(value=self.settings.overlay.ghost_chance)
-        ghost_chance_scale = ttk.Scale(frame, from_=0.0, to=1.0, orient="horizontal",
-                                      variable=self.ghost_chance_var, length=200)
-        ghost_chance_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        ghost_chance_label = ttk.Label(frame, text="")
-        ghost_chance_label.grid(row=row, column=2, sticky="w", padx=5)
-        
-        def update_ghost_chance_label(*args):
-            try:
-                value = self.ghost_chance_var.get()
-                ghost_chance_label.config(text=f"{value:.3f}")
-            except (tk.TclError, ValueError):
-                ghost_chance_label.config(text="--")
-        self.ghost_chance_var.trace_add('write', update_ghost_chance_label)
-        update_ghost_chance_label()
-        
-        self._bind_widget(ghost_chance_scale, "overlay.ghost_chance", float)
-        row += 1
+        row = self._create_slider_with_label(
+            frame, row, "Ghost Chance:",
+            self.ghost_chance_var, 0.0, 1.0,
+            "overlay.ghost_chance", float
+        )
         
         # Ghost Decay
-        ttk.Label(frame, text="Ghost Decay:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
         self.ghost_decay_var = tk.DoubleVar(value=self.settings.overlay.ghost_decay)
-        ghost_decay_scale = ttk.Scale(frame, from_=0.9, to=1.0, orient="horizontal",
-                                     variable=self.ghost_decay_var, length=200)
-        ghost_decay_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        ghost_decay_label = ttk.Label(frame, text="")
-        ghost_decay_label.grid(row=row, column=2, sticky="w", padx=5)
-        
-        def update_ghost_decay_label(*args):
-            try:
-                value = self.ghost_decay_var.get()
-                ghost_decay_label.config(text=f"{value:.3f}")
-            except (tk.TclError, ValueError):
-                ghost_decay_label.config(text="--")
-        self.ghost_decay_var.trace_add('write', update_ghost_decay_label)
-        update_ghost_decay_label()
-        
-        self._bind_widget(ghost_decay_scale, "overlay.ghost_decay", float)
-        row += 1
+        row = self._create_slider_with_label(
+            frame, row, "Ghost Decay:",
+            self.ghost_decay_var, 0.9, 1.0,
+            "overlay.ghost_decay", float
+        )
         
         # Flicker Parameters Section
         ttk.Separator(frame, orient="horizontal").grid(row=row, column=0, columnspan=3,
@@ -233,25 +281,12 @@ class SettingsGUI:
         row += 1
         
         # Flicker Chance
-        ttk.Label(frame, text="Flicker Chance:").grid(row=row, column=0, sticky="w", padx=5, pady=5)
         self.flicker_chance_var = tk.DoubleVar(value=self.settings.overlay.flicker_chance)
-        flicker_chance_scale = ttk.Scale(frame, from_=0.0, to=0.2, orient="horizontal",
-                                        variable=self.flicker_chance_var, length=200)
-        flicker_chance_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        flicker_chance_label = ttk.Label(frame, text="")
-        flicker_chance_label.grid(row=row, column=2, sticky="w", padx=5)
-        
-        def update_flicker_chance_label(*args):
-            try:
-                value = self.flicker_chance_var.get()
-                flicker_chance_label.config(text=f"{value:.3f}")
-            except (tk.TclError, ValueError):
-                flicker_chance_label.config(text="--")
-        self.flicker_chance_var.trace_add('write', update_flicker_chance_label)
-        update_flicker_chance_label()
-        
-        self._bind_widget(flicker_chance_scale, "overlay.flicker_chance", float)
-        row += 1
+        row = self._create_slider_with_label(
+            frame, row, "Flicker Chance:",
+            self.flicker_chance_var, 0.0, 0.2,
+            "overlay.flicker_chance", float
+        )
         
         # Colour Averaging Section
         ttk.Separator(frame, orient="horizontal").grid(row=row, column=0, columnspan=3,
@@ -296,8 +331,28 @@ class SettingsGUI:
             row=row, column=0, columnspan=3, sticky="w", padx=5, pady=(0, 5))
         row += 1
         
-    def _create_transitions_tab(self):
-        """Create the Transitions tab content."""
+    def _create_transitions_tab(self) -> None:
+        """Create the Transitions tab content.
+        
+        This tab contains transition-related settings with a scrollable canvas
+        to accommodate the large number of controls. Organised into sections:
+        
+        1. Transition Speed - Controls how fast pixel transitions occur
+        2. Text Change Interval - Time between automatic text block changes
+        3. Blank Time - Optional blank display period between transitions
+        4. Effect Transitions - Five subsections for transitioning visual effects:
+           - Colour scheme transitions (between different colour palettes)
+           - Overlay effect transitions (enable/disable effects)
+           - Transition mode changes (how colours change)
+           - Ghost parameter variations (chance/decay ranges)
+           - Flicker parameter variations (chance/intensity ranges)
+        
+        Each setting uses tkinter variables that are bound to the settings object
+        via _bind_widget() for automatic synchronisation when saved.
+        
+        Note: Some effect range controls also appear in the Advanced tab for
+        convenience, using the same tkinter variables for synchronisation.
+        """
         # Create a canvas with scrollbar for the transitions tab
         canvas = tk.Canvas(self.transitions_frame)
         scrollbar = ttk.Scrollbar(self.transitions_frame, orient="vertical", command=canvas.yview)
@@ -324,25 +379,12 @@ class SettingsGUI:
         row = 0
         
         # Transition Speed
-        ttk.Label(frame, text="Transition Speed (px/frame):").grid(row=row, column=0, sticky="w", padx=5, pady=5)
         self.transition_speed_var = tk.DoubleVar(value=self.settings.transition.transition_speed)
-        transition_speed_scale = ttk.Scale(frame, from_=0.1, to=50.0, orient="horizontal",
-                                          variable=self.transition_speed_var, length=300)
-        transition_speed_scale.grid(row=row, column=1, sticky="w", padx=5, pady=5)
-        transition_speed_label = ttk.Label(frame, text="")
-        transition_speed_label.grid(row=row, column=2, sticky="w", padx=5)
-        
-        def update_transition_speed_label(*args):
-            try:
-                value = self.transition_speed_var.get()
-                transition_speed_label.config(text=f"{value:.1f}")
-            except (tk.TclError, ValueError):
-                transition_speed_label.config(text="--")
-        self.transition_speed_var.trace_add('write', update_transition_speed_label)
-        update_transition_speed_label()
-        
-        self._bind_widget(transition_speed_scale, "transition.transition_speed", float)
-        row += 1
+        row = self._create_slider_with_label(
+            frame, row, "Transition Speed (px/frame):",
+            self.transition_speed_var, 0.1, 50.0,
+            "transition.transition_speed", float, format_str="{:.1f}"
+        )
         
         # Text Change Interval
         ttk.Label(frame, text="Text Change Interval (frames):").grid(row=row, column=0, sticky="w", padx=5, pady=5)
@@ -468,62 +510,38 @@ class SettingsGUI:
         self._bind_widget(ghost_frame, "transition.ghost_params_order", str)
         
         # Ghost Chance Min/Max
-        ttk.Label(ghost_frame, text="Ghost Chance Min:").grid(row=2, column=0, sticky="w", padx=20, pady=2)
         self.ghost_chance_min_var = tk.DoubleVar(value=self.settings.transition.ghost_chance_min)
-        ghost_chance_min_scale = ttk.Scale(ghost_frame, from_=0.0, to=1.0, orient="horizontal",
-                                          variable=self.ghost_chance_min_var, length=200)
-        ghost_chance_min_scale.grid(row=2, column=1, sticky="w", pady=2)
-        ghost_chance_min_label = ttk.Label(ghost_frame, text="")
-        ghost_chance_min_label.grid(row=2, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            ghost_frame, 2, "Ghost Chance Min:",
+            self.ghost_chance_min_var, 0.0, 1.0,
+            "transition.ghost_chance_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_ghost_chance_min(*args):
-            ghost_chance_min_label.config(text=f"{self.ghost_chance_min_var.get():.3f}")
-        self.ghost_chance_min_var.trace_add('write', update_ghost_chance_min)
-        update_ghost_chance_min()
-        self._bind_widget(ghost_chance_min_scale, "transition.ghost_chance_min", float)
-        
-        ttk.Label(ghost_frame, text="Ghost Chance Max:").grid(row=3, column=0, sticky="w", padx=20, pady=2)
         self.ghost_chance_max_var = tk.DoubleVar(value=self.settings.transition.ghost_chance_max)
-        ghost_chance_max_scale = ttk.Scale(ghost_frame, from_=0.0, to=1.0, orient="horizontal",
-                                          variable=self.ghost_chance_max_var, length=200)
-        ghost_chance_max_scale.grid(row=3, column=1, sticky="w", pady=2)
-        ghost_chance_max_label = ttk.Label(ghost_frame, text="")
-        ghost_chance_max_label.grid(row=3, column=2, sticky="w", padx=5)
-        
-        def update_ghost_chance_max(*args):
-            ghost_chance_max_label.config(text=f"{self.ghost_chance_max_var.get():.3f}")
-        self.ghost_chance_max_var.trace_add('write', update_ghost_chance_max)
-        update_ghost_chance_max()
-        self._bind_widget(ghost_chance_max_scale, "transition.ghost_chance_max", float)
+        self._create_slider_with_label(
+            ghost_frame, 3, "Ghost Chance Max:",
+            self.ghost_chance_max_var, 0.0, 1.0,
+            "transition.ghost_chance_max", float,
+            label_padx=20, pady=2
+        )
         
         # Ghost Decay Min/Max
-        ttk.Label(ghost_frame, text="Ghost Decay Min:").grid(row=4, column=0, sticky="w", padx=20, pady=2)
         self.ghost_decay_min_var = tk.DoubleVar(value=self.settings.transition.ghost_decay_min)
-        ghost_decay_min_scale = ttk.Scale(ghost_frame, from_=0.9, to=1.0, orient="horizontal",
-                                         variable=self.ghost_decay_min_var, length=200)
-        ghost_decay_min_scale.grid(row=4, column=1, sticky="w", pady=2)
-        ghost_decay_min_label = ttk.Label(ghost_frame, text="")
-        ghost_decay_min_label.grid(row=4, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            ghost_frame, 4, "Ghost Decay Min:",
+            self.ghost_decay_min_var, 0.9, 1.0,
+            "transition.ghost_decay_min", float,
+            format_str="{:.4f}", label_padx=20, pady=2
+        )
         
-        def update_ghost_decay_min(*args):
-            ghost_decay_min_label.config(text=f"{self.ghost_decay_min_var.get():.4f}")
-        self.ghost_decay_min_var.trace_add('write', update_ghost_decay_min)
-        update_ghost_decay_min()
-        self._bind_widget(ghost_decay_min_scale, "transition.ghost_decay_min", float)
-        
-        ttk.Label(ghost_frame, text="Ghost Decay Max:").grid(row=5, column=0, sticky="w", padx=20, pady=2)
         self.ghost_decay_max_var = tk.DoubleVar(value=self.settings.transition.ghost_decay_max)
-        ghost_decay_max_scale = ttk.Scale(ghost_frame, from_=0.9, to=1.0, orient="horizontal",
-                                         variable=self.ghost_decay_max_var, length=200)
-        ghost_decay_max_scale.grid(row=5, column=1, sticky="w", pady=2)
-        ghost_decay_max_label = ttk.Label(ghost_frame, text="")
-        ghost_decay_max_label.grid(row=5, column=2, sticky="w", padx=5)
-        
-        def update_ghost_decay_max(*args):
-            ghost_decay_max_label.config(text=f"{self.ghost_decay_max_var.get():.4f}")
-        self.ghost_decay_max_var.trace_add('write', update_ghost_decay_max)
-        update_ghost_decay_max()
-        self._bind_widget(ghost_decay_max_scale, "transition.ghost_decay_max", float)
+        self._create_slider_with_label(
+            ghost_frame, 5, "Ghost Decay Max:",
+            self.ghost_decay_max_var, 0.9, 1.0,
+            "transition.ghost_decay_max", float,
+            format_str="{:.4f}", label_padx=20, pady=2
+        )
         
         ttk.Label(ghost_frame, text="Randomizes ghost parameters within specified ranges",
                  font=("TkDefaultFont", 8)).grid(row=6, column=0, columnspan=3, sticky="w", pady=2)
@@ -548,62 +566,38 @@ class SettingsGUI:
         self._bind_widget(flicker_frame, "transition.flicker_params_order", str)
         
         # Flicker Chance Min/Max
-        ttk.Label(flicker_frame, text="Flicker Chance Min:").grid(row=2, column=0, sticky="w", padx=20, pady=2)
         self.flicker_chance_min_var = tk.DoubleVar(value=self.settings.transition.flicker_chance_min)
-        flicker_chance_min_scale = ttk.Scale(flicker_frame, from_=0.0, to=0.2, orient="horizontal",
-                                            variable=self.flicker_chance_min_var, length=200)
-        flicker_chance_min_scale.grid(row=2, column=1, sticky="w", pady=2)
-        flicker_chance_min_label = ttk.Label(flicker_frame, text="")
-        flicker_chance_min_label.grid(row=2, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            flicker_frame, 2, "Flicker Chance Min:",
+            self.flicker_chance_min_var, 0.0, 0.2,
+            "transition.flicker_chance_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_flicker_chance_min(*args):
-            flicker_chance_min_label.config(text=f"{self.flicker_chance_min_var.get():.3f}")
-        self.flicker_chance_min_var.trace_add('write', update_flicker_chance_min)
-        update_flicker_chance_min()
-        self._bind_widget(flicker_chance_min_scale, "transition.flicker_chance_min", float)
-        
-        ttk.Label(flicker_frame, text="Flicker Chance Max:").grid(row=3, column=0, sticky="w", padx=20, pady=2)
         self.flicker_chance_max_var = tk.DoubleVar(value=self.settings.transition.flicker_chance_max)
-        flicker_chance_max_scale = ttk.Scale(flicker_frame, from_=0.0, to=0.2, orient="horizontal",
-                                            variable=self.flicker_chance_max_var, length=200)
-        flicker_chance_max_scale.grid(row=3, column=1, sticky="w", pady=2)
-        flicker_chance_max_label = ttk.Label(flicker_frame, text="")
-        flicker_chance_max_label.grid(row=3, column=2, sticky="w", padx=5)
-        
-        def update_flicker_chance_max(*args):
-            flicker_chance_max_label.config(text=f"{self.flicker_chance_max_var.get():.3f}")
-        self.flicker_chance_max_var.trace_add('write', update_flicker_chance_max)
-        update_flicker_chance_max()
-        self._bind_widget(flicker_chance_max_scale, "transition.flicker_chance_max", float)
+        self._create_slider_with_label(
+            flicker_frame, 3, "Flicker Chance Max:",
+            self.flicker_chance_max_var, 0.0, 0.2,
+            "transition.flicker_chance_max", float,
+            label_padx=20, pady=2
+        )
         
         # Flicker Intensity Min/Max
-        ttk.Label(flicker_frame, text="Flicker Intensity Min:").grid(row=4, column=0, sticky="w", padx=20, pady=2)
         self.flicker_intensity_min_var = tk.DoubleVar(value=self.settings.transition.flicker_intensity_min)
-        flicker_intensity_min_scale = ttk.Scale(flicker_frame, from_=0.0, to=1.0, orient="horizontal",
-                                               variable=self.flicker_intensity_min_var, length=200)
-        flicker_intensity_min_scale.grid(row=4, column=1, sticky="w", pady=2)
-        flicker_intensity_min_label = ttk.Label(flicker_frame, text="")
-        flicker_intensity_min_label.grid(row=4, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            flicker_frame, 4, "Flicker Intensity Min:",
+            self.flicker_intensity_min_var, 0.0, 1.0,
+            "transition.flicker_intensity_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_flicker_intensity_min(*args):
-            flicker_intensity_min_label.config(text=f"{self.flicker_intensity_min_var.get():.3f}")
-        self.flicker_intensity_min_var.trace_add('write', update_flicker_intensity_min)
-        update_flicker_intensity_min()
-        self._bind_widget(flicker_intensity_min_scale, "transition.flicker_intensity_min", float)
-        
-        ttk.Label(flicker_frame, text="Flicker Intensity Max:").grid(row=5, column=0, sticky="w", padx=20, pady=2)
         self.flicker_intensity_max_var = tk.DoubleVar(value=self.settings.transition.flicker_intensity_max)
-        flicker_intensity_max_scale = ttk.Scale(flicker_frame, from_=0.0, to=1.0, orient="horizontal",
-                                               variable=self.flicker_intensity_max_var, length=200)
-        flicker_intensity_max_scale.grid(row=5, column=1, sticky="w", pady=2)
-        flicker_intensity_max_label = ttk.Label(flicker_frame, text="")
-        flicker_intensity_max_label.grid(row=5, column=2, sticky="w", padx=5)
-        
-        def update_flicker_intensity_max(*args):
-            flicker_intensity_max_label.config(text=f"{self.flicker_intensity_max_var.get():.3f}")
-        self.flicker_intensity_max_var.trace_add('write', update_flicker_intensity_max)
-        update_flicker_intensity_max()
-        self._bind_widget(flicker_intensity_max_scale, "transition.flicker_intensity_max", float)
+        self._create_slider_with_label(
+            flicker_frame, 5, "Flicker Intensity Max:",
+            self.flicker_intensity_max_var, 0.0, 1.0,
+            "transition.flicker_intensity_max", float,
+            label_padx=20, pady=2
+        )
         
         ttk.Label(flicker_frame, text="Randomizes flicker parameters within specified ranges",
                  font=("TkDefaultFont", 8)).grid(row=6, column=0, columnspan=3, sticky="w", pady=2)
@@ -628,39 +622,53 @@ class SettingsGUI:
         self._bind_widget(speed_frame, "transition.speed_order", str)
         
         # Speed Min/Max
-        ttk.Label(speed_frame, text="Speed Min (px/frame):").grid(row=2, column=0, sticky="w", padx=20, pady=2)
         self.speed_min_var = tk.DoubleVar(value=self.settings.transition.speed_min)
-        speed_min_scale = ttk.Scale(speed_frame, from_=0.1, to=50.0, orient="horizontal",
-                                   variable=self.speed_min_var, length=200)
-        speed_min_scale.grid(row=2, column=1, sticky="w", pady=2)
-        speed_min_label = ttk.Label(speed_frame, text="")
-        speed_min_label.grid(row=2, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            speed_frame, 2, "Speed Min (px/frame):",
+            self.speed_min_var, 0.1, 50.0,
+            "transition.speed_min", float,
+            format_str="{:.1f}", label_padx=20, pady=2
+        )
         
-        def update_speed_min(*args):
-            speed_min_label.config(text=f"{self.speed_min_var.get():.1f}")
-        self.speed_min_var.trace_add('write', update_speed_min)
-        update_speed_min()
-        self._bind_widget(speed_min_scale, "transition.speed_min", float)
-        
-        ttk.Label(speed_frame, text="Speed Max (px/frame):").grid(row=3, column=0, sticky="w", padx=20, pady=2)
         self.speed_max_var = tk.DoubleVar(value=self.settings.transition.speed_max)
-        speed_max_scale = ttk.Scale(speed_frame, from_=0.1, to=50.0, orient="horizontal",
-                                   variable=self.speed_max_var, length=200)
-        speed_max_scale.grid(row=3, column=1, sticky="w", pady=2)
-        speed_max_label = ttk.Label(speed_frame, text="")
-        speed_max_label.grid(row=3, column=2, sticky="w", padx=5)
-        
-        def update_speed_max(*args):
-            speed_max_label.config(text=f"{self.speed_max_var.get():.1f}")
-        self.speed_max_var.trace_add('write', update_speed_max)
-        update_speed_max()
-        self._bind_widget(speed_max_scale, "transition.speed_max", float)
+        self._create_slider_with_label(
+            speed_frame, 3, "Speed Max (px/frame):",
+            self.speed_max_var, 0.1, 50.0,
+            "transition.speed_max", float,
+            format_str="{:.1f}", label_padx=20, pady=2
+        )
         
         ttk.Label(speed_frame, text="Randomizes transition speed within specified range",
                  font=("TkDefaultFont", 8)).grid(row=4, column=0, columnspan=3, sticky="w", pady=2)
         
-    def _create_advanced_tab(self):
-        """Create the Advanced tab content."""
+    def _create_advanced_tab(self) -> None:
+        """Create the Advanced tab content.
+        
+        This tab serves dual purposes:
+        1. Standalone advanced settings (file monitoring, debug logging)
+        2. Duplicated effect transition range controls from Transitions tab
+        
+        The duplication exists for user convenience - advanced users can fine-tune
+        effect variation ranges here without switching tabs. The same tkinter
+        variables are used, so changes in either tab are synchronized.
+        
+        Sections:
+        - File Monitoring: How often to check for text file changes
+        - Debug Settings: Logging level configuration
+        - Speed Variation: Min/max transition speed range (duplicated)
+        - Ghost Parameter Ranges: Chance/decay variation (duplicated)
+        - Flicker Parameter Ranges: Chance/intensity variation (duplicated)
+        
+        Variable Synchronization:
+        - ghost_chance_min_var, ghost_chance_max_var (shared with Transitions tab)
+        - ghost_decay_min_var, ghost_decay_max_var (shared with Transitions tab)
+        - flicker_chance_min_var, flicker_chance_max_var (shared with Transitions tab)
+        - flicker_intensity_min_var, flicker_intensity_max_var (shared with Transitions tab)
+        - speed_min_var, speed_max_var (shared with Transitions tab)
+        
+        This duplication is intentional but may be refactored in Phase 2 to use
+        a tabbed sub-section or collapsible panels instead.
+        """
         frame = self.advanced_frame
         row = 0
         
@@ -710,135 +718,85 @@ class SettingsGUI:
         ttk.Label(effect_ranges_frame, text="Speed Variation", font=("TkDefaultFont", 9, "bold")).grid(
             row=1, column=0, columnspan=3, sticky="w", pady=(5, 2))
         
-        ttk.Label(effect_ranges_frame, text="Speed Min (px/frame):").grid(row=2, column=0, sticky="w", padx=20, pady=2)
-        speed_min_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.1, to=50.0, orient="horizontal",
-                                        variable=self.speed_min_var, length=200)
-        speed_min_adv_scale.grid(row=2, column=1, sticky="w", pady=2)
-        speed_min_adv_label = ttk.Label(effect_ranges_frame, text="")
-        speed_min_adv_label.grid(row=2, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            effect_ranges_frame, 2, "Speed Min (px/frame):",
+            self.speed_min_var, 0.1, 50.0,
+            "transition.speed_min", float,
+            format_str="{:.1f}", label_padx=20, pady=2
+        )
         
-        def update_speed_min_adv(*args):
-            speed_min_adv_label.config(text=f"{self.speed_min_var.get():.1f}")
-        self.speed_min_var.trace_add('write', update_speed_min_adv)
-        update_speed_min_adv()
-        
-        ttk.Label(effect_ranges_frame, text="Speed Max (px/frame):").grid(row=3, column=0, sticky="w", padx=20, pady=2)
-        speed_max_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.1, to=50.0, orient="horizontal",
-                                        variable=self.speed_max_var, length=200)
-        speed_max_adv_scale.grid(row=3, column=1, sticky="w", pady=2)
-        speed_max_adv_label = ttk.Label(effect_ranges_frame, text="")
-        speed_max_adv_label.grid(row=3, column=2, sticky="w", padx=5)
-        
-        def update_speed_max_adv(*args):
-            speed_max_adv_label.config(text=f"{self.speed_max_var.get():.1f}")
-        self.speed_max_var.trace_add('write', update_speed_max_adv)
-        update_speed_max_adv()
+        self._create_slider_with_label(
+            effect_ranges_frame, 3, "Speed Max (px/frame):",
+            self.speed_max_var, 0.1, 50.0,
+            "transition.speed_max", float,
+            format_str="{:.1f}", label_padx=20, pady=2
+        )
         
         # Ghost parameter ranges
         ttk.Label(effect_ranges_frame, text="Ghost Parameters", font=("TkDefaultFont", 9, "bold")).grid(
             row=4, column=0, columnspan=3, sticky="w", pady=(10, 2))
         
-        ttk.Label(effect_ranges_frame, text="Ghost Chance Min:").grid(row=5, column=0, sticky="w", padx=20, pady=2)
-        ghost_chance_min_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=1.0, orient="horizontal",
-                                               variable=self.ghost_chance_min_var, length=200)
-        ghost_chance_min_adv_scale.grid(row=5, column=1, sticky="w", pady=2)
-        ghost_chance_min_adv_label = ttk.Label(effect_ranges_frame, text="")
-        ghost_chance_min_adv_label.grid(row=5, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            effect_ranges_frame, 5, "Ghost Chance Min:",
+            self.ghost_chance_min_var, 0.0, 1.0,
+            "transition.ghost_chance_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_ghost_chance_min_adv(*args):
-            ghost_chance_min_adv_label.config(text=f"{self.ghost_chance_min_var.get():.3f}")
-        self.ghost_chance_min_var.trace_add('write', update_ghost_chance_min_adv)
-        update_ghost_chance_min_adv()
+        self._create_slider_with_label(
+            effect_ranges_frame, 6, "Ghost Chance Max:",
+            self.ghost_chance_max_var, 0.0, 1.0,
+            "transition.ghost_chance_max", float,
+            label_padx=20, pady=2
+        )
         
-        ttk.Label(effect_ranges_frame, text="Ghost Chance Max:").grid(row=6, column=0, sticky="w", padx=20, pady=2)
-        ghost_chance_max_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=1.0, orient="horizontal",
-                                               variable=self.ghost_chance_max_var, length=200)
-        ghost_chance_max_adv_scale.grid(row=6, column=1, sticky="w", pady=2)
-        ghost_chance_max_adv_label = ttk.Label(effect_ranges_frame, text="")
-        ghost_chance_max_adv_label.grid(row=6, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            effect_ranges_frame, 7, "Ghost Decay Min:",
+            self.ghost_decay_min_var, 0.9, 1.0,
+            "transition.ghost_decay_min", float,
+            format_str="{:.4f}", label_padx=20, pady=2
+        )
         
-        def update_ghost_chance_max_adv(*args):
-            ghost_chance_max_adv_label.config(text=f"{self.ghost_chance_max_var.get():.3f}")
-        self.ghost_chance_max_var.trace_add('write', update_ghost_chance_max_adv)
-        update_ghost_chance_max_adv()
-        
-        ttk.Label(effect_ranges_frame, text="Ghost Decay Min:").grid(row=7, column=0, sticky="w", padx=20, pady=2)
-        ghost_decay_min_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.9, to=1.0, orient="horizontal",
-                                              variable=self.ghost_decay_min_var, length=200)
-        ghost_decay_min_adv_scale.grid(row=7, column=1, sticky="w", pady=2)
-        ghost_decay_min_adv_label = ttk.Label(effect_ranges_frame, text="")
-        ghost_decay_min_adv_label.grid(row=7, column=2, sticky="w", padx=5)
-        
-        def update_ghost_decay_min_adv(*args):
-            ghost_decay_min_adv_label.config(text=f"{self.ghost_decay_min_var.get():.4f}")
-        self.ghost_decay_min_var.trace_add('write', update_ghost_decay_min_adv)
-        update_ghost_decay_min_adv()
-        
-        ttk.Label(effect_ranges_frame, text="Ghost Decay Max:").grid(row=8, column=0, sticky="w", padx=20, pady=2)
-        ghost_decay_max_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.9, to=1.0, orient="horizontal",
-                                              variable=self.ghost_decay_max_var, length=200)
-        ghost_decay_max_adv_scale.grid(row=8, column=1, sticky="w", pady=2)
-        ghost_decay_max_adv_label = ttk.Label(effect_ranges_frame, text="")
-        ghost_decay_max_adv_label.grid(row=8, column=2, sticky="w", padx=5)
-        
-        def update_ghost_decay_max_adv(*args):
-            ghost_decay_max_adv_label.config(text=f"{self.ghost_decay_max_var.get():.4f}")
-        self.ghost_decay_max_var.trace_add('write', update_ghost_decay_max_adv)
-        update_ghost_decay_max_adv()
+        self._create_slider_with_label(
+            effect_ranges_frame, 8, "Ghost Decay Max:",
+            self.ghost_decay_max_var, 0.9, 1.0,
+            "transition.ghost_decay_max", float,
+            format_str="{:.4f}", label_padx=20, pady=2
+        )
         
         # Flicker parameter ranges
         ttk.Label(effect_ranges_frame, text="Flicker Parameters", font=("TkDefaultFont", 9, "bold")).grid(
             row=9, column=0, columnspan=3, sticky="w", pady=(10, 2))
         
-        ttk.Label(effect_ranges_frame, text="Flicker Chance Min:").grid(row=10, column=0, sticky="w", padx=20, pady=2)
-        flicker_chance_min_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=0.2, orient="horizontal",
-                                                 variable=self.flicker_chance_min_var, length=200)
-        flicker_chance_min_adv_scale.grid(row=10, column=1, sticky="w", pady=2)
-        flicker_chance_min_adv_label = ttk.Label(effect_ranges_frame, text="")
-        flicker_chance_min_adv_label.grid(row=10, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            effect_ranges_frame, 10, "Flicker Chance Min:",
+            self.flicker_chance_min_var, 0.0, 0.2,
+            "transition.flicker_chance_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_flicker_chance_min_adv(*args):
-            flicker_chance_min_adv_label.config(text=f"{self.flicker_chance_min_var.get():.3f}")
-        self.flicker_chance_min_var.trace_add('write', update_flicker_chance_min_adv)
-        update_flicker_chance_min_adv()
+        self._create_slider_with_label(
+            effect_ranges_frame, 11, "Flicker Chance Max:",
+            self.flicker_chance_max_var, 0.0, 0.2,
+            "transition.flicker_chance_max", float,
+            label_padx=20, pady=2
+        )
         
-        ttk.Label(effect_ranges_frame, text="Flicker Chance Max:").grid(row=11, column=0, sticky="w", padx=20, pady=2)
-        flicker_chance_max_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=0.2, orient="horizontal",
-                                                 variable=self.flicker_chance_max_var, length=200)
-        flicker_chance_max_adv_scale.grid(row=11, column=1, sticky="w", pady=2)
-        flicker_chance_max_adv_label = ttk.Label(effect_ranges_frame, text="")
-        flicker_chance_max_adv_label.grid(row=11, column=2, sticky="w", padx=5)
+        self._create_slider_with_label(
+            effect_ranges_frame, 12, "Flicker Intensity Min:",
+            self.flicker_intensity_min_var, 0.0, 1.0,
+            "transition.flicker_intensity_min", float,
+            label_padx=20, pady=2
+        )
         
-        def update_flicker_chance_max_adv(*args):
-            flicker_chance_max_adv_label.config(text=f"{self.flicker_chance_max_var.get():.3f}")
-        self.flicker_chance_max_var.trace_add('write', update_flicker_chance_max_adv)
-        update_flicker_chance_max_adv()
+        self._create_slider_with_label(
+            effect_ranges_frame, 13, "Flicker Intensity Max:",
+            self.flicker_intensity_max_var, 0.0, 1.0,
+            "transition.flicker_intensity_max", float,
+            label_padx=20, pady=2
+        )
         
-        ttk.Label(effect_ranges_frame, text="Flicker Intensity Min:").grid(row=12, column=0, sticky="w", padx=20, pady=2)
-        flicker_intensity_min_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=1.0, orient="horizontal",
-                                                    variable=self.flicker_intensity_min_var, length=200)
-        flicker_intensity_min_adv_scale.grid(row=12, column=1, sticky="w", pady=2)
-        flicker_intensity_min_adv_label = ttk.Label(effect_ranges_frame, text="")
-        flicker_intensity_min_adv_label.grid(row=12, column=2, sticky="w", padx=5)
-        
-        def update_flicker_intensity_min_adv(*args):
-            flicker_intensity_min_adv_label.config(text=f"{self.flicker_intensity_min_var.get():.3f}")
-        self.flicker_intensity_min_var.trace_add('write', update_flicker_intensity_min_adv)
-        update_flicker_intensity_min_adv()
-        
-        ttk.Label(effect_ranges_frame, text="Flicker Intensity Max:").grid(row=13, column=0, sticky="w", padx=20, pady=2)
-        flicker_intensity_max_adv_scale = ttk.Scale(effect_ranges_frame, from_=0.0, to=1.0, orient="horizontal",
-                                                    variable=self.flicker_intensity_max_var, length=200)
-        flicker_intensity_max_adv_scale.grid(row=13, column=1, sticky="w", pady=2)
-        flicker_intensity_max_adv_label = ttk.Label(effect_ranges_frame, text="")
-        flicker_intensity_max_adv_label.grid(row=13, column=2, sticky="w", padx=5)
-        
-        def update_flicker_intensity_max_adv(*args):
-            flicker_intensity_max_adv_label.config(text=f"{self.flicker_intensity_max_var.get():.3f}")
-        self.flicker_intensity_max_var.trace_add('write', update_flicker_intensity_max_adv)
-        update_flicker_intensity_max_adv()
-        
-    def _create_control_buttons(self):
+    def _create_control_buttons(self) -> None:
         """Create control buttons at the bottom of the window."""
         # Status label above buttons (fixed position)
         status_frame = ttk.Frame(self.root)
@@ -862,12 +820,40 @@ class SettingsGUI:
         ttk.Button(button_frame, text="Save Settings", 
                   command=self._save_current_settings).pack(side="right", padx=5)
         
-    def _bind_widget(self, widget, settings_path: str, converter: Callable):
+    def _bind_widget(self, widget, settings_path: str, converter: Callable) -> None:
         """Bind a widget to a settings path for manual saving."""
         self.widget_bindings[widget] = (settings_path, converter)
         
-    def _update_setting_from_widget(self, widget):
-        """Update settings object when widget value changes."""
+    def _update_setting_from_widget(self, widget) -> None:
+        """Update settings object when widget value changes.
+        
+        This method implements the widget-to-settings synchronisation system.
+        When a widget is modified, this extracts the value, converts it to the
+        appropriate type, and updates the corresponding nested settings attribute.
+        
+        Process:
+        1. Look up the widget's registered settings path and converter function
+        2. Extract the value from the widget's associated tkinter variable
+        3. Convert the value using the registered converter (e.g., str → enum)
+        4. Navigate the nested settings object path (e.g., "overlay.ghost_chance")
+        5. Update the final attribute with the converted value
+        
+        Error Handling:
+        - TclError: Catches invalid widget values (e.g., empty string in number field)
+        - ValueError: Catches conversion failures, uses default fallback values
+        - Prints errors to console without raising (allows GUI to continue)
+        
+        Settings Path Format:
+        - Dot-separated path: "parent.child.attribute"
+        - Example: "overlay.ghost_chance" → settings.overlay.ghost_chance
+        - Supports arbitrary nesting depth
+        
+        Widget Binding:
+        - Widgets are registered via _bind_widget(widget, path, converter)
+        - The large if-elif chain maps paths to their tkinter variables
+        - This is a known code smell; future refactoring should use a dictionary
+          dispatch pattern (widget_value_getters) - see Phase 2 plan
+        """
         if widget not in self.widget_bindings:
             return
             
@@ -987,7 +973,7 @@ class SettingsGUI:
         except Exception as e:
             print(f"Error updating setting {settings_path}: {e}")
     
-    def _load_current_settings(self):
+    def _load_current_settings(self) -> None:
         """Load current settings from file if it exists."""
         settings_file = "config/user_settings.json"
         if os.path.exists(settings_file):
@@ -997,7 +983,7 @@ class SettingsGUI:
             except Exception as e:
                 print(f"Error loading settings: {e}")
     
-    def _update_widgets_from_settings(self):
+    def _update_widgets_from_settings(self) -> None:
         """Update all widgets to reflect current settings values."""
         # Overlay settings
         self.overlay_enabled_var.set(self.settings.overlay.overlay_enabled)
@@ -1047,25 +1033,25 @@ class SettingsGUI:
     
 
     
-    def _load_demo_settings(self):
+    def _load_demo_settings(self) -> None:
         """Load demo settings preset."""
         self.settings = create_demo_settings()
         self._update_widgets_from_settings()
         self._show_status("Demo settings loaded (press Save to apply)", "blue")
     
-    def _load_transgender_settings(self):
+    def _load_transgender_settings(self) -> None:
         """Load transgender pride settings preset."""
         self.settings = create_transgender_pride_settings()
         self._update_widgets_from_settings()
         self._show_status("Transgender pride settings loaded (press Save to apply)", "blue")
     
-    def _load_performance_settings(self):
+    def _load_performance_settings(self) -> None:
         """Load performance settings preset."""
         self.settings = create_performance_settings()
         self._update_widgets_from_settings()
         self._show_status("Performance settings loaded (press Save to apply)", "blue")
     
-    def _load_settings_file(self):
+    def _load_settings_file(self) -> None:
         """Load settings from a file dialog."""
         filename = filedialog.askopenfilename(
             title="Load Settings File",
@@ -1080,7 +1066,7 @@ class SettingsGUI:
             except Exception as e:
                 self._show_status(f"Error loading: {str(e)}", "red")
     
-    def _save_settings_file(self):
+    def _save_settings_file(self) -> None:
         """Save settings to a file dialog."""
         filename = filedialog.asksaveasfilename(
             title="Save Settings File",
@@ -1097,7 +1083,7 @@ class SettingsGUI:
     
 
     
-    def _save_current_settings(self):
+    def _save_current_settings(self) -> None:
         """Save current settings to file."""
         try:
             # Update settings from all widgets first
@@ -1127,14 +1113,14 @@ class SettingsGUI:
         except Exception as e:
             self._show_status(f"Save error: {str(e)}", "red")
     
-    def _show_status(self, message: str, colour: str = "black"):
+    def _show_status(self, message: str, colour: str = "black") -> None:
         """Show status message in the GUI without popups or sounds."""
         if self.status_label:
             self.status_label.config(text=message, foreground=colour)
             # Clear status after 3 seconds
             self.root.after(3000, lambda: self.status_label.config(text="Ready", foreground="gray") if self.status_label else None)
     
-    def _get_available_text_files(self):
+    def _get_available_text_files(self) -> list[str]:
         """Get list of available text files."""
         text_files = []
         text_dir = "TextInputFiles"
@@ -1144,7 +1130,7 @@ class SettingsGUI:
                     text_files.append(os.path.join(text_dir, file))
         return text_files
     
-    def _on_text_file_changed(self, event=None):
+    def _on_text_file_changed(self, event=None) -> None:
         """Handle text file selection change."""
         new_file = self.text_file_var.get()
         if new_file != self.current_text_file:
@@ -1152,7 +1138,7 @@ class SettingsGUI:
             self._update_file_info_for_file(new_file)
             self._show_status(f"Previewing: {os.path.basename(new_file)} (press Save to apply)", "orange")
     
-    def _update_file_info(self):
+    def _update_file_info(self) -> None:
         """Update file info and preview for current text file."""
         self._update_file_info_for_file(self.current_text_file)
     
@@ -1185,14 +1171,14 @@ class SettingsGUI:
             self.file_info_label.config(text=f"Error reading file: {e}")
             self._update_preview(f"Error: {e}")
     
-    def _update_preview(self, text):
+    def _update_preview(self, text: str) -> None:
         """Update the preview text widget."""
         self.preview_text.config(state=tk.NORMAL)
         self.preview_text.delete(1.0, tk.END)
         self.preview_text.insert(1.0, text)
         self.preview_text.config(state=tk.DISABLED)
     
-    def _save_text_file_selection(self):
+    def _save_text_file_selection(self) -> None:
         """Save the selected text file to a separate config file for the main app."""
         try:
             os.makedirs("config", exist_ok=True)
@@ -1201,7 +1187,7 @@ class SettingsGUI:
         except Exception as e:
             self._show_status(f"Error saving text file selection: {e}", "red")
     
-    def _load_current_text_file_selection(self):
+    def _load_current_text_file_selection(self) -> None:
         """Load the current text file selection from config."""
         try:
             if os.path.exists("config/current_text_file.txt"):
@@ -1213,12 +1199,12 @@ class SettingsGUI:
         except Exception as e:
             print(f"Error loading text file selection: {e}")
     
-    def run(self):
+    def run(self) -> None:
         """Start the GUI application."""
         self.root.mainloop()
 
 
-def main():
+def main() -> None:
     """Main entry point for the settings GUI."""
     app = SettingsGUI()
     app.run()

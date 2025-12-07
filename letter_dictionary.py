@@ -1,4 +1,54 @@
-#Provide a lookup dictionary for letters and characters to pixel representations in a 6x8 grid
+"""
+Character Pixel Dictionary - 6x8 Binary Grid Representations
+
+This module provides a lookup dictionary mapping characters to their pixel-based
+representations using a 6x8 grid format. Each character is defined as a list of
+6 binary numbers, where each binary number represents a row of 8 pixels.
+
+Binary Format:
+--------------
+Each row is represented as a 6-bit binary number (0b prefix), where:
+- 1 (bit set) = pixel ON (character foreground)
+- 0 (bit cleared) = pixel OFF (character background)
+
+Example: Letter 'A'
+-------------------
+    0b011111  →  .#####  (row 1: top horizontal bar)
+    0b100001  →  #....#  (row 2: left and right verticals)
+    0b100001  →  #....#  (row 3: left and right verticals)
+    0b111111  →  ######  (row 4: middle horizontal bar)
+    0b100001  →  #....#  (row 5: left and right verticals)
+    0b100001  →  #....#  (row 6: left and right verticals bottom)
+
+Usage:
+------
+    from letter_dictionary import letter_dict
+    
+    # Get pixel pattern for letter 'A'
+    pattern = letter_dict['A']
+    
+    # Check if pixel at row 0, col 1 is set
+    is_set = bool(pattern[0] & (1 << (5 - 1)))  # True (pixel is ON)
+
+Grid Dimensions:
+----------------
+- Width: 6 pixels (bits 0-5, right to left)
+- Height: 8 rows (list indices 0-7, though some chars use only 6)
+- Total pixels per character: 48 (6 × 8)
+
+Supported Characters:
+---------------------
+- Uppercase letters: A-Z
+- Lowercase letters: a-z
+- Digits: 0-9
+- Punctuation: . , ! ? ' " : ; - ( ) [ ]
+- Symbols: @ # $ % & * + = / \\ < > ^ _ ~ `
+- Whitespace: space
+
+Note: Characters not in the dictionary will be rendered as a blank space.
+"""
+
+# Provide a lookup dictionary for letters and characters to pixel representations in a 6x8 grid
 letter_dict = {
     ' ': [
         0b000000,

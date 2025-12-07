@@ -1,11 +1,15 @@
 import random
 import os
 import time
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, TYPE_CHECKING, Type
+from enum import Enum
 from config.settings import Settings
 
+if TYPE_CHECKING:
+    from screendisplayer import ScreenDisplayer
+
 class TransitionManager:
-    def __init__(self, screen_displayer, settings: Optional[Settings] = None):
+    def __init__(self, screen_displayer: "ScreenDisplayer", settings: Optional[Settings] = None) -> None:
         self.displayer = screen_displayer
         self.frame_count = 0
         
@@ -83,6 +87,68 @@ class TransitionManager:
             print(f"Text order sequential: 0 to {len(self.text_order_indices)-1}")
             
         self.current_order_position = 0
+    
+    def _initialise_enum_order(
+        self,
+        enum_type: Type[Enum],
+        order_mode: str,
+        enum_name: str
+    ) -> list:
+        """Generic helper to initialise enum ordering (random or sequential).
+        
+        Eliminates duplication between colour_scheme and transition_mode ordering logic.
+        
+        Args:
+            enum_type: The enum class (e.g., ColourScheme, TransitionMode)
+            order_mode: "random" or "sequential"
+            enum_name: Display name for logging (e.g., "Colour scheme", "Transition mode")
+            
+        Returns:
+            List of enum values in the specified order
+        """
+        order_indices = list(enum_type)
+        
+        if order_mode == "random":
+            random.shuffle(order_indices)
+            display_values = [e.value for e in order_indices[:5]]
+            suffix = "..." if len(order_indices) > 5 else ""
+            print(f"{enum_name} order shuffled: {display_values}{suffix}")
+        else:
+            print(f"{enum_name} order sequential: {len(order_indices)} items")
+        
+        return order_indices
+    
+    def _update_enum_order_for_mode_change(
+        self,
+        new_order_mode: str,
+        last_order_mode_attr: str,
+        enum_type: Type[Enum],
+        order_indices_attr: str,
+        position_attr: str,
+        enum_name: str
+    ) -> None:
+        """Generic helper to update enum ordering when order mode changes via GUI.
+        
+        Eliminates duplication between colour_scheme and transition_mode update logic.
+        
+        Args:
+            new_order_mode: New order mode ("random" or "sequential")
+            last_order_mode_attr: Attribute name storing last order mode (e.g., "_last_colour_scheme_order")
+            enum_type: The enum class (e.g., ColourScheme, TransitionMode)
+            order_indices_attr: Attribute name for order indices list (e.g., "colour_scheme_order_indices")
+            position_attr: Attribute name for current position (e.g., "current_colour_scheme_position")
+            enum_name: Display name for logging (e.g., "Colour scheme", "Transition mode")
+        """
+        old_order_mode = getattr(self, last_order_mode_attr, None)
+        
+        # Only change order if the mode actually changed
+        if new_order_mode != old_order_mode:
+            order_indices = self._initialise_enum_order(enum_type, new_order_mode, enum_name)
+            setattr(self, order_indices_attr, order_indices)
+            setattr(self, position_attr, 0)
+            print(f"{enum_name} order changed to {new_order_mode}")
+        
+        setattr(self, last_order_mode_attr, new_order_mode)
     
     def _update_text_order_for_shuffle_change(self, new_shuffle_setting: bool) -> None:
         """Update text order when shuffle setting changes via GUI"""
@@ -162,75 +228,49 @@ class TransitionManager:
         """Initialise the colour scheme order based on current settings"""
         from config.enums import ColourScheme
         
-        # Create list of all colour scheme enum values
-        self.colour_scheme_order_indices = list(ColourScheme)
-        
-        # Apply ordering based on order mode
-        if self.settings.transition.colour_scheme_order == "random":
-            random.shuffle(self.colour_scheme_order_indices)
-            print(f"Colour scheme order shuffled: {[s.value for s in self.colour_scheme_order_indices[:5]]}...")
-        else:
-            print(f"Colour scheme order sequential: {len(self.colour_scheme_order_indices)} schemes")
-        
+        self.colour_scheme_order_indices = self._initialise_enum_order(
+            ColourScheme,
+            self.settings.transition.colour_scheme_order,
+            "Colour scheme"
+        )
         self.current_colour_scheme_position = 0
     
     def _initialise_transition_mode_order(self) -> None:
         """Initialise the transition mode order based on current settings"""
         from config.enums import TransitionMode
         
-        # Create list of all transition mode enum values
-        self.transition_mode_order_indices = list(TransitionMode)
-        
-        # Apply ordering based on order mode
-        if self.settings.transition.colour_mode_order == "random":
-            random.shuffle(self.transition_mode_order_indices)
-            print(f"Transition mode order shuffled: {[m.value for m in self.transition_mode_order_indices]}")
-        else:
-            print(f"Transition mode order sequential: {len(self.transition_mode_order_indices)} modes")
-        
+        self.transition_mode_order_indices = self._initialise_enum_order(
+            TransitionMode,
+            self.settings.transition.colour_mode_order,
+            "Transition mode"
+        )
         self.current_transition_mode_position = 0
     
     def _update_colour_scheme_order_for_mode_change(self, new_order_mode: str) -> None:
         """Update colour scheme order when order mode changes via GUI"""
         from config.enums import ColourScheme
         
-        old_order_mode = self._last_colour_scheme_order
-        
-        # Only change order if the mode actually changed
-        if new_order_mode != old_order_mode:
-            self.colour_scheme_order_indices = list(ColourScheme)
-            
-            if new_order_mode == "random":
-                random.shuffle(self.colour_scheme_order_indices)
-                print(f"Colour scheme order changed to random: {[s.value for s in self.colour_scheme_order_indices[:5]]}...")
-            else:
-                print(f"Colour scheme order changed to sequential")
-            
-            # Reset position to start
-            self.current_colour_scheme_position = 0
-        
-        self._last_colour_scheme_order = new_order_mode
+        self._update_enum_order_for_mode_change(
+            new_order_mode,
+            "_last_colour_scheme_order",
+            ColourScheme,
+            "colour_scheme_order_indices",
+            "current_colour_scheme_position",
+            "Colour scheme"
+        )
     
     def _update_transition_mode_order_for_mode_change(self, new_order_mode: str) -> None:
         """Update transition mode order when order mode changes via GUI"""
         from config.enums import TransitionMode
         
-        old_order_mode = self._last_transition_mode_order
-        
-        # Only change order if the mode actually changed
-        if new_order_mode != old_order_mode:
-            self.transition_mode_order_indices = list(TransitionMode)
-            
-            if new_order_mode == "random":
-                random.shuffle(self.transition_mode_order_indices)
-                print(f"Transition mode order changed to random: {[m.value for m in self.transition_mode_order_indices]}")
-            else:
-                print(f"Transition mode order changed to sequential")
-            
-            # Reset position to start
-            self.current_transition_mode_position = 0
-        
-        self._last_transition_mode_order = new_order_mode
+        self._update_enum_order_for_mode_change(
+            new_order_mode,
+            "_last_transition_mode_order",
+            TransitionMode,
+            "transition_mode_order_indices",
+            "current_transition_mode_position",
+            "Transition mode"
+        )
     
     def _check_effect_transition_setting_changes(self) -> None:
         """Check if effect transition settings have changed and update accordingly"""
@@ -506,7 +546,7 @@ class TransitionManager:
             # Apply to displayer
             self.displayer.set_transition_speed(speed)
     
-    def _handle_text_change(self):
+    def _handle_text_change(self) -> None:
         """Handle automatic text changes"""
         if not self.displayer.text_content:
             return

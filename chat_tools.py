@@ -232,7 +232,52 @@ class ChatTools:
         self.bot_thread.start()
     
     def _run_bot_thread(self) -> None:
-        """Thread worker for running Twitch bot."""
+        """Thread worker for running Twitch bot.
+        
+        This method runs the Twitch chat bot in a separate thread with its own
+        asyncio event loop. It creates a nested TwitchChatBot class that handles
+        all Twitch interactions using the TwitchIO library.
+        
+        Bot Architecture:
+        - Nested TwitchChatBot class inherits from commands.Bot
+        - Uses custom OAuth token authentication (not standard IRC)
+        - Sends messages via Helix API instead of IRC (see send_message method)
+        - Subscribes to EventSub WebSocket for real-time events
+        - Maintains separate event loop in this thread
+        
+        Event Handlers:
+        - event_ready: Called when bot connects, joins channel, sets up EventSub
+        - event_message: Handles incoming chat messages, processes commands/auto-messages
+        - event_error: Handles bot errors and reconnection
+        
+        Custom send_message Method:
+        - Uses Twitch Helix API (POST /helix/chat/messages)
+        - Requires broadcaster_id for sending messages
+        - Returns success/failure boolean
+        - More reliable than IRC for programmatic messages
+        
+        Chat Activity Tracking:
+        - Maintains recent_messages deque for auto-message activity threshold
+        - Tracks timestamps to implement min_messages_in_window requirement
+        - Used to prevent auto-messages when chat is inactive
+        
+        Current Limitations (TODO - lines 294-339):
+        - Single OAuth token limits available scopes
+        - Missing dual OAuth (bot + broadcaster tokens)
+        - Cannot access subscriber lists, polls, predictions, hype trains
+        - Cannot receive bits/cheer events without broadcaster auth
+        - EventSub subscriptions are limited by token scopes
+        
+        Thread Safety:
+        - Runs in separate thread with own event loop
+        - GUI updates via root.after() to avoid tkinter issues
+        - Bot stored in self.bot for external access/shutdown
+        
+        Error Handling:
+        - Catches all exceptions in outer try-except
+        - Logs errors to GUI via log_message()
+        - event_error handler for bot-specific errors
+        """
         try:
             from twitchio.ext import commands
             from twitchio import eventsub, ChatMessage

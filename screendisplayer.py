@@ -221,7 +221,7 @@ class ScreenDisplayer:
         """Get the current transition speed."""
         return self.transition_speed
     
-    def _render_text_to_grid(self, text_block, target_grid):
+    def _render_text_to_grid(self, text_block: str, target_grid: list[list[bool]]) -> None:
         """Helper method to render text to a specific grid"""
         # Clear the target grid
         for row in range(len(target_grid)):

@@ -304,7 +304,45 @@ class ScreenOverlay:
             self.ghost_layer[row][col] = (intensity, new_colour, new_timer)
     
     def _update_ghost_effects(self, current_grid: List[List[bool]]) -> None:
-        """Update ghost pixel effects"""
+        """Update ghost pixel effects.
+        
+        Ghost effects create trailing pixels that fade out over time when text
+        changes, creating a visual echo effect. Uses two-phase algorithm to
+        prevent conflicts between decay and spawning.
+        
+        Algorithm:
+        Phase 1 - Decay Existing Ghosts:
+        - Multiply each ghost's intensity by decay factor (typically 0.97-0.99)
+        - Remove ghosts that overlap with new active text pixels
+        - Remove ghosts below minimum intensity threshold (0.01)
+        
+        Phase 2 - Spawn New Ghosts:
+        - Check each active text pixel for ghost spawning
+        - Spawn probability controlled by ghost_chance (0.0-1.0)
+        - New ghosts start at configured intensity (typically 0.5-1.0)
+        - Add to separate list to avoid modifying during iteration
+        
+        Colour Modes (from colour_transition_mode):
+        - MIXED: Each ghost gets random colour from current scheme
+        - HORIZONTAL_SPREAD/VERTICAL_SPREAD: Colour varies by position
+        - SMOOTH/SNAP: Single colour for all ghosts
+        
+        Colour Averaging Integration:
+        - Updates averaging timer for smooth colour transitions
+        - Applies weighted colour averaging if enabled
+        - Triggers periodic colour recalculation at configured intervals
+        
+        Performance:
+        - Two-pass algorithm prevents race conditions
+        - Separate new_ghosts list for clean spawning logic
+        - Intensity threshold removes invisible ghosts early
+        
+        Related Settings:
+        - ghost_chance: Probability of spawning (0.0-1.0)
+        - ghost_decay: Fade rate per frame (0.9-1.0)
+        - ghost_spawn_intensity: Initial brightness (0.0-1.0)
+        - colour_transition_mode: How ghost colours are determined
+        """
         # Store new ghost pixels to add after processing existing ones
         new_ghosts = []
         current_colour = self._get_current_ghost_colour()

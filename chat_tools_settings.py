@@ -108,7 +108,34 @@ class ChatToolsSettings:
         close_btn.pack(side=tk.LEFT, padx=10)
     
     def _create_connection_tab(self) -> None:
-        """Create the connection settings tab."""
+        """Create the connection settings tab.
+        
+        This tab handles Twitch bot authentication and connection configuration.
+        Users must provide OAuth credentials to enable chat bot functionality.
+        
+        Fields:
+        - Bot Username: Twitch username of the bot account
+        - Channel: Twitch channel to monitor (without # prefix)
+        - Client ID: Twitch application client ID from dev console
+        - Client Secret: Twitch application client secret (optional for some flows)
+        - Bot ID: Numeric user ID of bot account (required for API calls)
+        - OAuth Token: Access token obtained via OAuth flow (readonly field)
+        
+        OAuth Flow Button:
+        - Opens browser to Twitch OAuth authorization
+        - Runs local HTTP server to capture callback
+        - Automatically populates OAuth Token field when complete
+        - See _oauth_flow_thread() for implementation details
+        
+        Validation:
+        - Bot ID must be numeric
+        - Client ID/Secret must match Twitch app configuration
+        - OAuth token must have required scopes for bot functionality
+        
+        Help Links:
+        - Clickable labels provide direct links to Twitch developer resources
+        - Guide users through app creation and credential retrieval
+        """
         conn_tab = tk.Frame(self.notebook, padx=40, pady=20)
         self.notebook.add(conn_tab, text="Connection")
         
@@ -257,7 +284,39 @@ class ChatToolsSettings:
         test_btn.pack(side=tk.LEFT, padx=10)
     
     def _create_commands_tab(self) -> None:
-        """Create the chat commands configuration tab."""
+        """Create the chat commands configuration tab.
+        
+        Dual-pane layout with command list and editor for creating/modifying
+        custom chat commands. Commands are triggered when users type them in chat.
+        
+        Layout:
+        - Left pane: Listbox showing all configured commands
+        - Right pane: Editor for selected command with add/remove buttons
+        
+        Command Configuration:
+        - Trigger: Command text (must start with !, alphanumeric only)
+        - Response: Message bot sends when command is triggered
+        - Enabled: Toggle to temporarily disable command without deleting
+        - Permission Level: Who can use command (everyone, subscriber, moderator, broadcaster)
+        - Cooldown: Minimum seconds between command uses (prevents spam)
+        
+        Workflow:
+        1. Click "Add Command" to create new entry
+        2. Fill in trigger (e.g., "!discord") and response
+        3. Set permission level and cooldown
+        4. Click "Save Command" to commit changes
+        5. Select from list to edit existing commands
+        6. Click "Remove Command" to delete
+        
+        Validation:
+        - Trigger must start with ! and contain only alphanumeric characters
+        - Duplicate triggers are prevented
+        - Response cannot be empty
+        
+        TODO (line 288):
+        - Implement response variables: {username}, {time}, {uptime}
+        - Allow personalized responses with dynamic content
+        """
         # TODO: Implement command response variables ({username}, {time}, {uptime})
         
         cmd_tab = tk.Frame(self.notebook)
@@ -450,7 +509,52 @@ class ChatToolsSettings:
         ).pack(anchor="w")
     
     def _create_auto_messages_tab(self) -> None:
-        """Create the auto messages configuration tab."""
+        """Create the auto messages configuration tab.
+        
+        Configure messages that the bot automatically posts at intervals.
+        Useful for promoting social media, rules reminders, or announcements.
+        
+        Layout:
+        - Top: Global auto-message settings
+        - Left pane: Listbox showing all configured messages
+        - Right pane: Editor for selected message
+        
+        Global Settings:
+        - Enable Auto Messages: Master toggle for entire system
+        - Selection Mode: Random (shuffle) or Sequential (ordered)
+        - Base Interval: Seconds between auto-messages (applies to all)
+        
+        Activity Threshold:
+        - Min Messages in Window: Required chat activity before posting
+        - Time Window: Period to count messages (in minutes)
+        - Prevents auto-messages when chat is dead/inactive
+        
+        Per-Message Configuration:
+        - Message Text: Content to post
+        - Enabled: Toggle individual message without deleting
+        - Interval Multiplier: Scale base interval for this message (1.0 = normal)
+        
+        Selection Modes:
+        - Random: Picks messages randomly (no repeats until all shown)
+        - Sequential: Posts in order from top to bottom, then repeats
+        
+        Workflow:
+        1. Enable auto-messages globally
+        2. Set base interval and activity threshold
+        3. Add messages with "Add Message" button
+        4. Configure each message's text and interval multiplier
+        5. Bot posts messages automatically when connected
+        
+        Relationship to Global Enable:
+        - Global toggle overrides all per-message enables
+        - Per-message enables allow selective activation when global is on
+        - Both must be enabled for a message to post
+        
+        TODO (lines 481-483):
+        - Variable substitution in auto messages
+        - Schedule-based messages (time of day restrictions)
+        - Viewer count thresholds for auto-messages
+        """
         # TODO: Add variable substitution in auto messages
         # TODO: Add schedule-based messages (time of day restrictions)
         # TODO: Add viewer count thresholds
@@ -1012,7 +1116,48 @@ class ChatToolsSettings:
         thread.start()
     
     def _oauth_flow_thread(self, client_id: str) -> None:
-        """Thread worker for OAuth flow."""
+        """Thread worker for Twitch OAuth flow.
+        
+        Implements Twitch's implicit grant OAuth flow using a local HTTP server
+        to capture the access token. This is a complex two-step process required
+        because Twitch returns the token in the URL fragment (after #), which
+        browsers don't send to servers.
+        
+        OAuth Flow Process:
+        1. Opens browser to Twitch OAuth URL with client_id and redirect_uri
+        2. User authorises the application on Twitch
+        3. Twitch redirects to http://localhost:8080 with token in URL fragment
+        4. Local HTTP server serves HTML page with JavaScript
+        5. JavaScript extracts token from window.location.hash
+        6. JavaScript makes fetch() call to /callback with token as query param
+        7. Server captures token from query string and stores it
+        8. Token is updated in GUI via root.after() for thread safety
+        
+        Why Two HTTP Requests Are Needed:
+        - First request (/) serves the HTML/JavaScript extraction page
+        - Second request (/callback) receives the extracted token
+        - This workaround is necessary because URL fragments are client-side only
+        
+        Server Configuration:
+        - Listens on localhost:8080
+        - Timeout: None (blocks until token received)
+        - Handles exactly 2 requests then shuts down
+        
+        Current Limitations (TODO):
+        - Single OAuth token (bot account only)
+        - Missing broadcaster OAuth for advanced features
+        - No token refresh mechanism
+        - No token expiration handling
+        - See lines 1125-1147 for dual OAuth implementation plan
+        
+        Thread Safety:
+        - Uses class instance variable to pass token between handler and thread
+        - GUI updates via root.after() to avoid tkinter threading issues
+        
+        Error Handling:
+        - Catches all exceptions and displays error dialog
+        - Prints debug output to console for troubleshooting
+        """
         try:
             # Create OAuth callback handler
             settings_instance = self
@@ -1283,7 +1428,40 @@ class ChatToolsSettings:
         bot_id: str,
         channel: str
     ) -> None:
-        """Thread worker for testing Twitch connection."""
+        """Thread worker for testing Twitch connection.
+        
+        Creates a temporary bot instance to validate credentials and connection
+        without starting the full chat bot. Useful for debugging auth issues.
+        
+        Process:
+        1. Creates temporary TwitchIO bot with provided credentials
+        2. Attempts to connect to Twitch API
+        3. Joins specified channel
+        4. Waits up to 10 seconds for successful connection
+        5. Reports success/failure back to GUI via callback
+        
+        Timeout Mechanism:
+        - Uses asyncio.wait_for() with 10-second timeout
+        - Prevents hanging on invalid credentials or network issues
+        - Timeout error is caught and reported as connection failure
+        
+        Callback System:
+        - Uses root.after() for thread-safe GUI updates
+        - Displays success message in green
+        - Displays errors in red
+        - Async result handling via temporary bot instance
+        
+        Validation:
+        - Bot ID must be numeric (raises ValueError if not)
+        - OAuth token must be valid Twitch access token
+        - Client ID/Secret must match registered Twitch app
+        - Channel must exist and be accessible
+        
+        Cleanup:
+        - Bot instance is temporary and discarded after test
+        - Does not interfere with main bot connection
+        - Event loop created specifically for this test
+        """
         try:
             # Try importing twitchio
             try:
