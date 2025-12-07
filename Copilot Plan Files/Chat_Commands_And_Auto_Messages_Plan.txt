@@ -1,0 +1,365 @@
+================================================================================
+CHAT COMMANDS & AUTO MESSAGES PLAN
+================================================================================
+Plan Date: December 7, 2025
+Status: Planning Phase
+
+================================================================================
+OVERVIEW
+================================================================================
+
+Convert Chat Tools Settings from single-form GUI to tabbed interface with three
+tabs:
+
+1. Connection Settings (existing configuration)
+2. Chat Commands (NEW - custom bot commands)
+3. Auto Messages (NEW - random automated messages)
+
+================================================================================
+TAB 1: CONNECTION SETTINGS (EXISTING)
+================================================================================
+
+Purpose:
+  Keep all existing Twitch connection configuration in dedicated tab
+
+Contents:
+  - Username field
+  - Client ID field
+  - Client Secret field
+  - OAuth authorization button
+  - OAuth token field (read-only)
+  - Bot ID field
+  - Channel to join field
+  - Test Connection button
+  - Save Settings button
+
+Changes Needed:
+  - Wrap existing form in ttk.Notebook tab
+  - No functional changes to existing fields
+  - Keep all OAuth flow logic intact
+
+================================================================================
+TAB 2: CHAT COMMANDS (NEW)
+================================================================================
+
+Purpose:
+  Configure custom chat commands that users can trigger in Twitch chat
+  Bot responds with predefined messages when commands are typed
+
+Command Structure:
+  - Command triggers: Multiple aliases (e.g., ["!discord", "!dc"])
+  - Response text: What the bot says when triggered
+  - Permission level: Who can use it (Streamer/Mods/Everyone)
+  - Cooldown: Minimum seconds between uses (prevent spam)
+  - Enabled/disabled toggle
+
+GUI Layout:
+  +------------------------------------------------------------+
+  | Commands List (Listbox)              | Command Editor     |
+  |                                       |                    |
+  | Discord Links                         | Triggers:          |
+  | PC Specs                              | !discord !dc       |
+  | Social Media                          | !server            |
+  | Lurk Message                          |                    |
+  |                                       | Response:          |
+  | [Add Command] [Remove Selected]       | [text area]        |
+  |                                       |                    |
+  |                                       | Permission:        |
+  |                                       | (o) Streamer Only  |
+  |                                       | (o) Mods Only      |
+  |                                       | (o) Everyone       |
+  |                                       |                    |
+  |                                       | Cooldown: [30] sec |
+  |                                       |                    |
+  |                                       | [x] Enabled        |
+  |                                       |                    |
+  |                                       | [Save Command]     |
+  +------------------------------------------------------------+
+
+Features:
+  - List of all configured commands (left side)
+  - Command name shown in list (not trigger - cleaner display)
+  - Selecting command shows details in editor (right side)
+  - Triggers field accepts space-separated aliases
+  - Add new command button creates blank command
+  - Remove button deletes selected command
+  - Save button updates command in config
+  - Real-time validation (no duplicate triggers, valid cooldown)
+
+Data Structure (chat_tools_config.json):
+  {
+    "username": "...",
+    "oauth_token": "...",
+    ... existing fields ...
+    
+    "commands": [
+      {
+        "name": "Discord Links",
+        "triggers": ["!discord", "!dc", "!server"],
+        "response": "Join our Discord: https://discord.gg/example",
+        "permission": "everyone",  // "streamer", "mods", "everyone"
+        "cooldown": 30,
+        "enabled": true
+      },
+      {
+        "name": "PC Specs",
+        "triggers": ["!specs", "!pc"],
+        "response": "PC Specs: i9-13900K, RTX 4090, 64GB RAM",
+        "permission": "everyone",
+        "cooldown": 60,
+        "enabled": true
+      }
+    ]
+  }
+
+Validation Rules:
+  - Triggers must start with ! and be alphanumeric
+  - At least one trigger required per command
+  - Response cannot be empty
+  - Cooldown must be >= 0 (0 = no cooldown)
+  - No duplicate triggers across all commands
+  - Command name cannot be empty
+
+Implementation Notes:
+  - chat_tools.py needs command handler logic
+  - Check user permission level from Twitch IRC tags
+  - Track last command usage times for cooldowns
+  - Case-insensitive command matching
+
+================================================================================
+TAB 3: AUTO MESSAGES (NEW)
+================================================================================
+
+Purpose:
+  Configure random automated messages the bot sends periodically
+  Examples: follow reminders, Discord links, hydration reminders, etc.
+
+Message Structure:
+  - Message text: What the bot says
+  - Enabled/disabled toggle
+
+Global Settings:
+  - Master enable/disable for all auto-messages
+  - Global interval: Minutes between auto-message posts
+  - Chat activity threshold: Minimum messages needed
+  - Activity window: Time window to count activity in
+  - Random vs sequential selection mode
+
+GUI Layout:
+  +------------------------------------------------------------+
+  | Auto Messages List (Listbox)         | Message Editor     |
+  |                                       |                    |
+  | Follow reminder                       | Message:           |
+  | Discord invite                        | [text area]        |
+  | Hydration reminder                    |                    |
+  | Clip reminder                         |                    |
+  |                                       |                    |
+  | [Add Message] [Remove Selected]       | [x] Enabled        |
+  |                                       |                    |
+  |                                       | [Save Message]     |
+  +------------------------------------------------------------+
+  
+  Global Settings:
+  +------------------------------------------------------------+
+  | Auto Message Global Settings                               |
+  |                                                            |
+  | [x] Enable Auto Messages                                   |
+  |                                                            |
+  | Post Interval: [20] minutes                                |
+  | (How often to post an auto-message)                        |
+  |                                                            |
+  | Minimum Chat Activity: [5] messages                        |
+  | Activity Window: [5] minutes                               |
+  | (Skip auto-message if fewer than X messages in last Y min) |
+  |                                                            |
+  | Selection Mode: (o) Random  ( ) Sequential                 |
+  +------------------------------------------------------------+
+
+Features:
+  - List of all configured auto messages (left side)
+  - Selecting message shows details in editor (right side)
+  - Add new message button creates blank message
+  - Remove button deletes selected message
+  - Save button updates message in config
+  - Global settings section for system-wide controls
+  - Global interval applies to all messages
+  - Random vs sequential affects message selection order
+  - Chat activity threshold prevents spam in quiet chat
+
+Data Structure (chat_tools_config.json):
+  {
+    "username": "...",
+    "oauth_token": "...",
+    ... existing fields ...
+    "commands": [...],
+    
+    "auto_messages": {
+      "enabled": true,
+      "post_interval_minutes": 20,
+      "min_chat_activity": 5,
+      "activity_window_minutes": 5,
+      "random_order": true,
+      "messages": [
+        {
+          "text": "Don't forget to follow if you're enjoying the stream! 💜",
+          "enabled": true
+        },
+        {
+          "text": "Join our Discord community: https://discord.gg/example",
+          "enabled": true
+        },
+        {
+          "text": "Hydrate! Grab some water! 💧",
+          "enabled": false
+        }
+      ]
+    }
+  }
+
+Implementation Notes:
+  - chat_tools.py needs background task for auto messages
+  - Track chat message timestamps in time windows
+  - Track last auto-message post time
+  - Randomly select from enabled messages (if random_order=true)
+  - Sequentially cycle through enabled messages (if random_order=false)
+  - Skip auto-message if chat activity below threshold
+  - Use global post_interval_minutes for timing
+  - Count activity in last activity_window_minutes
+
+================================================================================
+IMPLEMENTATION TASKS
+================================================================================
+
+Phase 1: GUI Restructure (chat_tools_settings.py)
+  [ ] Import ttk for Notebook widget
+  [ ] Create ttk.Notebook in main window
+  [ ] Move existing form into "Connection" tab
+  [ ] Create "Commands" tab with dual-pane layout
+  [ ] Create "Auto Messages" tab with dual-pane layout
+  [ ] Update save/load logic to handle new config structure
+
+Phase 2: Commands Tab Implementation
+  [ ] Add commands listbox with scrollbar
+  [ ] Add command editor form (right pane)
+  [ ] Implement add/remove/save command logic
+  [ ] Add command trigger validation
+  [ ] Add permission level radio buttons
+  [ ] Add cooldown spinner/entry
+  [ ] Add enabled checkbox
+  [ ] Update config save/load for commands array
+
+Phase 3: Auto Messages Tab Implementation
+  [ ] Add messages listbox with scrollbar
+  [ ] Add message editor form (right pane)
+  [ ] Implement add/remove/save message logic
+  [ ] Add global settings section
+  [ ] Add interval spinner/entry
+  [ ] Add enabled checkbox
+  [ ] Update config save/load for auto_messages object
+
+Phase 4: Chat Tools Integration (chat_tools.py)
+  [ ] Add command parser in message handler
+  [ ] Implement permission checking (streamer/mods/everyone)
+  [ ] Add cooldown tracking dictionary
+  [ ] Add command response logic
+  [ ] Create auto-message background task (asyncio)
+  [ ] Add chat activity counter
+  [ ] Implement random message selection
+  [ ] Add interval-based message scheduling
+
+Phase 5: Testing & Polish
+  [ ] Test command triggering with different permissions
+  [ ] Test cooldown enforcement
+  [ ] Test auto-message timing and randomisation
+  [ ] Test chat activity threshold
+  [ ] Test config save/load with all new fields
+  [ ] Add error handling for malformed configs
+  [ ] Add TODO markers for future enhancements
+
+================================================================================
+DESIGN DECISIONS - APPROVED ✓
+================================================================================
+
+Decision 1: Command Response Variables
+  ✓ APPROVED: No variable support initially
+  - Keep simple text only
+  - Add TODO for future enhancement ({username}, {time}, {uptime})
+
+Decision 2: Auto Message Interval System
+  ✓ APPROVED: Global interval setting
+  - Single configurable interval for all auto-messages
+  - Random/sequential only affects message selection
+  - Example: "Post auto-message every 20 minutes" (global)
+
+Decision 3: Command Aliases
+  ✓ APPROVED: Yes - support multiple triggers per command
+  - One command can have multiple alias triggers
+  - Example: ["!discord", "!dc", "!server"] all trigger same response
+  - GUI shows all aliases in trigger field
+
+Decision 4: Auto Message Persistence
+  ✓ APPROVED: No persistence across restarts
+  - Timers reset when bot restarts
+  - Simpler implementation
+  - Acceptable to potentially double-post after restart
+
+Decision 5: Chat Activity Window
+  ✓ APPROVED: Configurable time window
+  - Add "activity_window_minutes" setting
+  - Count messages in last X minutes before posting auto-message
+  - Default: 5 minutes
+  - Prevents spam in quiet chat
+
+================================================================================
+BRITISH ENGLISH REMINDERS
+================================================================================
+
+UI Text Examples:
+  - "Authorise with Twitch" (not "Authorize")
+  - "Customise Commands" (not "Customize")
+  - "Randomise Order" (not "Randomize")
+  - "Colour scheme" (not "Color scheme") - if needed later
+
+Variable Names:
+  - randomise_order (not randomize_order)
+  - min_chat_activity (already correct)
+  - enable_auto_messages (already correct)
+
+================================================================================
+ESTIMATED COMPLEXITY
+================================================================================
+
+Connection Tab Migration:     Low      (just wrapping existing code)
+Commands Tab UI:              Medium   (dual-pane, validation)
+Auto Messages Tab UI:         Medium   (dual-pane, global settings)
+Command Handler Logic:        Medium   (permissions, cooldowns)
+Auto Message Scheduler:       High     (async timing, activity tracking)
+
+Total Estimated Time: 4-6 hours implementation + testing
+
+================================================================================
+FUTURE ENHANCEMENTS (TODO markers to add)
+================================================================================
+
+Commands:
+  - Variable substitution in responses ({username}, {uptime}, etc.)
+  - Command usage statistics (how many times triggered)
+  - Mod-only commands for bot control (!botoff, !boton)
+  - Multi-line responses with random selection
+  - Command aliases (multiple triggers)
+
+Auto Messages:
+  - Schedule-based messages (only during certain hours)
+  - Variable substitution in auto messages
+  - Different message pools for different stream categories
+  - Viewer count thresholds (only auto-message if X viewers)
+  - Integration with stream events (follow, sub, raid)
+
+Both:
+  - Import/export command/message sets
+  - Template library (common commands/messages)
+  - Test mode (preview messages without sending to chat)
+
+================================================================================
+END OF PLAN
+================================================================================

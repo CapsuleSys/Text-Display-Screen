@@ -3,17 +3,21 @@ Twitch Chat Tools
 
 Main chat monitoring and interaction tool for Twitch streams. Connects to
 Twitch IRC, displays chat messages in a log window, and provides basic
-chat interaction capabilities.
+chat interaction capabilities including custom commands and auto messages.
 """
 
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
 import asyncio
 import threading
+import time
+import random
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 
 class ChatTools:
@@ -35,8 +39,20 @@ class ChatTools:
         self.bot_thread: Optional[threading.Thread] = None
         self.event_loop: Optional[asyncio.AbstractEventLoop] = None
         
+        # Command tracking
+        self.command_cooldowns: dict[str, float] = {}  # trigger -> last_used_time
+        
+        # Auto messages tracking
+        self.auto_msg_task: Optional[asyncio.Task] = None
+        self.auto_msg_index: int = 0  # For sequential mode
+        self.chat_activity_timestamps: list[float] = []  # Message timestamps
+        
+        # File watcher for config changes
+        self.config_observer: Optional[Observer] = None
+        
         self._create_ui()
         self._load_config()
+        self._start_config_watcher()
     
     def _create_ui(self) -> None:
         """Create the chat tools UI components."""
@@ -238,6 +254,38 @@ class ChatTools:
                     )
                     self.oauth_token = chat_tools_instance.config['oauth_token']
                     print(f"[DEBUG] Bot initialized for channel: {chat_tools_instance.config['channel']}")
+                    
+                    # Store broadcaster ID for sending messages
+                    self.broadcaster_id: Optional[str] = None
+                
+                async def send_message(self, message: str) -> None:
+                    """Send a message to the configured channel using Twitch Helix API directly."""
+                    if not self.broadcaster_id:
+                        print("[ERROR] Broadcaster ID not set")
+                        return
+                    
+                    # Send chat message using aiohttp directly to Twitch Helix API
+                    import aiohttp
+                    
+                    url = "https://api.twitch.tv/helix/chat/messages"
+                    headers = {
+                        "Authorization": f"Bearer {self.oauth_token}",
+                        "Client-Id": chat_tools_instance.config['client_id'],
+                        "Content-Type": "application/json"
+                    }
+                    payload = {
+                        "broadcaster_id": self.broadcaster_id,
+                        "sender_id": chat_tools_instance.config['bot_id'],
+                        "message": message
+                    }
+                    
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url, headers=headers, json=payload) as resp:
+                            if resp.status == 200:
+                                print(f"[DEBUG] Message sent successfully")
+                            else:
+                                error_text = await resp.text()
+                                print(f"[ERROR] Failed to send message: {resp.status} - {error_text}")
                 
                 async def setup_hook(self):
                     """Called before connecting - subscribe to chat messages via EventSub WebSocket"""
@@ -265,6 +313,7 @@ class ChatTools:
                         users = await self.fetch_users(logins=[channel_name])
                         if users:
                             broadcaster = users[0]
+                            self.broadcaster_id = broadcaster.id  # Store for sending messages
                             print(f"[DEBUG] Found broadcaster: {broadcaster.name} (ID: {broadcaster.id})")
                             
                             # Create subscription payload for chat messages
@@ -308,6 +357,11 @@ class ChatTools:
                         )
                     )
                     print(f"[INFO] Bot ready and subscribed to channel")
+                    
+                    # Start auto-message task
+                    chat_tools_instance.auto_msg_task = asyncio.create_task(
+                        chat_tools_instance._auto_message_loop()
+                    )
                 
                 async def event_message(self, message: ChatMessage):
                     """Handle incoming chat messages from EventSub"""
@@ -320,6 +374,9 @@ class ChatTools:
                         content = message.text
                         print(f"[DEBUG] Chat: {username}: {content}")
                         
+                        # Track chat activity for auto-messages
+                        chat_tools_instance.chat_activity_timestamps.append(time.time())
+                        
                         # Log to UI
                         chat_tools_instance.root.after(
                             0,
@@ -328,6 +385,10 @@ class ChatTools:
                                 "CHAT"
                             )
                         )
+                        
+                        # Check for commands
+                        await chat_tools_instance._handle_command(message)
+                        
                     except Exception as e:
                         print(f"[ERROR] Failed to process message: {e}")
                         import traceback
@@ -393,6 +454,10 @@ class ChatTools:
         """Disconnect from Twitch IRC."""
         self.log_message("Disconnecting from Twitch...", "INFO")
         
+        # Cancel auto-message task
+        if self.auto_msg_task and not self.auto_msg_task.done():
+            self.auto_msg_task.cancel()
+        
         if self.bot and self.event_loop:
             try:
                 # Stop the bot
@@ -407,6 +472,7 @@ class ChatTools:
         self.is_connected = False
         self.bot = None
         self.event_loop = None
+        self.auto_msg_task = None
         self._update_connection_status()
         self.log_message("Disconnected from Twitch", "INFO")
     
@@ -452,22 +518,270 @@ class ChatTools:
         except Exception as e:
             self.log_message(f"Failed to open settings: {e}", "ERROR")
     
-    # TODO: Implement event handlers for Twitch chat
-    # def on_message_received(self, message) -> None:
-    #     """Handle incoming Twitch chat message."""
-    #     pass
+    def _start_config_watcher(self) -> None:
+        """Start watching config file for changes."""
+        if not self.config_path.exists():
+            return
+        
+        chat_tools_instance = self
+        
+        class ConfigFileHandler(FileSystemEventHandler):
+            """Handler for config file changes."""
+            
+            def on_modified(self, event):
+                """Called when config file is modified."""
+                if event.src_path == str(chat_tools_instance.config_path):
+                    print(f"[INFO] Config file changed, reloading...")
+                    # Reload in main thread with small delay to ensure file write is complete
+                    chat_tools_instance.root.after(500, chat_tools_instance._reload_config)
+        
+        # Create observer and start watching
+        event_handler = ConfigFileHandler()
+        self.config_observer = Observer()
+        self.config_observer.schedule(
+            event_handler,
+            str(self.config_path.parent),
+            recursive=False
+        )
+        self.config_observer.start()
+        print("[INFO] Config file watcher started")
     
-    # def on_user_join(self, user) -> None:
-    #     """Handle user joining chat."""
-    #     pass
+    def _reload_config(self) -> None:
+        """Reload configuration from file without reconnecting."""
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                new_config = json.load(f)
+            
+            # Store old config for comparison
+            old_config = self.config.copy() if self.config else {}
+            
+            # Update config
+            self.config = new_config
+            
+            # Detect specific changes for logging
+            changes = []
+            
+            # Check connection settings
+            connection_keys = ["username", "oauth_token", "client_id", "client_secret", "bot_id", "channel"]
+            if any(old_config.get(k) != new_config.get(k) for k in connection_keys):
+                changes.append("[Connection tab] connection settings")
+            
+            # Check commands
+            if old_config.get("commands") != new_config.get("commands"):
+                num_commands = len(new_config.get("commands", []))
+                changes.append(f"[Commands tab] commands ({num_commands} total)")
+            
+            # Check auto messages config
+            if old_config.get("auto_messages") != new_config.get("auto_messages"):
+                changes.append("[Auto Messages tab] auto-messages")
+            
+            if changes:
+                self.log_message(
+                    f"Config reloaded: {', '.join(changes)} updated",
+                    "INFO"
+                )
+            else:
+                self.log_message("Config reloaded (no changes detected)", "INFO")
+        
+        except Exception as e:
+            self.log_message(f"Failed to reload config: {e}", "ERROR")
     
-    # def on_user_part(self, user) -> None:
-    #     """Handle user leaving chat."""
-    #     pass
+    def _stop_config_watcher(self) -> None:
+        """Stop watching config file."""
+        if self.config_observer:
+            self.config_observer.stop()
+            self.config_observer.join()
+            self.config_observer = None
+            print("[INFO] Config file watcher stopped")
     
-    # def send_chat_message(self, message: str) -> None:
-    #     """Send a message to Twitch chat."""
-    #     pass
+    async def _handle_command(self, message: Any) -> None:
+        """Handle chat command if message matches configured commands."""
+        # TODO: Add command usage statistics tracking
+        
+        if not self.config:
+            return
+        
+        commands = self.config.get("commands", [])
+        if not commands:
+            return
+        
+        content = message.text.strip()
+        if not content:
+            return
+        
+        # Extract first word as potential command
+        parts = content.split(maxsplit=1)
+        trigger = parts[0].lower()
+        
+        # Find matching command
+        matched_command = None
+        for cmd in commands:
+            if not cmd.get("enabled", True):
+                continue
+            
+            triggers = cmd.get("triggers", [])
+            if trigger in [t.lower() for t in triggers]:
+                matched_command = cmd
+                break
+        
+        if not matched_command:
+            return
+        
+        # Check cooldown
+        now = time.time()
+        cooldown = matched_command.get("cooldown", 0)
+        
+        if trigger in self.command_cooldowns:
+            last_used = self.command_cooldowns[trigger]
+            time_since = now - last_used
+            
+            if time_since < cooldown:
+                remaining = int(cooldown - time_since)
+                print(f"[DEBUG] Command {trigger} on cooldown ({remaining}s remaining)")
+                return
+        
+        # Check permissions
+        permission = matched_command.get("permission", "everyone")
+        username = message.chatter.name.lower()
+        
+        # Get channel owner from config
+        channel_owner = self.config.get("channel", "").lower()
+        
+        if permission == "streamer":
+            if username != channel_owner:
+                print(f"[DEBUG] {username} tried to use streamer-only command {trigger}")
+                return
+        
+        elif permission == "mods":
+            # Check if user is mod or broadcaster
+            is_mod = message.chatter.is_mod if hasattr(message.chatter, 'is_mod') else False
+            is_broadcaster = username == channel_owner
+            
+            if not (is_mod or is_broadcaster):
+                print(f"[DEBUG] {username} tried to use mod-only command {trigger}")
+                return
+        
+        # Execute command - send response
+        response = matched_command.get("response", "")
+        if response and self.bot:
+            try:
+                # Use bot's custom send_message method
+                await self.bot.send_message(response)
+                
+                # Update cooldown
+                self.command_cooldowns[trigger] = now
+                
+                # Log to UI
+                self.root.after(
+                    0,
+                    lambda r=response: self.log_message(
+                        f"[BOT] {r}",
+                        "SUCCESS"
+                    )
+                )
+                
+                print(f"[INFO] Command {trigger} executed by {username}")
+            
+            except Exception as e:
+                print(f"[ERROR] Failed to send command response: {e}")
+                import traceback
+                traceback.print_exc()
+    
+    async def _auto_message_loop(self) -> None:
+        """Background task for posting auto messages at intervals."""
+        # TODO: Add schedule-based messages (time of day restrictions)
+        # TODO: Add viewer count thresholds
+        # TODO: Add integration with stream events
+        
+        if not self.config:
+            return
+        
+        # Store channel reference for sending messages
+        channel_ref = None
+        
+        while True:
+            try:
+                # Get fresh config each iteration to pick up changes
+                auto_msg_config = self.config.get("auto_messages", {}) if self.config else {}
+                
+                # Check if auto messages enabled
+                if not auto_msg_config.get("enabled", True):
+                    await asyncio.sleep(60)  # Check again in 1 minute
+                    continue
+                
+                # Get configuration (fresh each time)
+                interval_minutes = auto_msg_config.get("post_interval_minutes", 20)
+                min_activity = auto_msg_config.get("min_chat_activity", 5)
+                activity_window_minutes = auto_msg_config.get("activity_window_minutes", 5)
+                random_order = auto_msg_config.get("random_order", True)
+                messages = auto_msg_config.get("messages", [])
+                
+                # Filter enabled messages
+                enabled_messages = [m for m in messages if m.get("enabled", True)]
+                
+                if not enabled_messages:
+                    await asyncio.sleep(60)
+                    continue
+                
+                # Wait for interval
+                await asyncio.sleep(interval_minutes * 60)
+                
+                # Check chat activity
+                now = time.time()
+                activity_window_seconds = activity_window_minutes * 60
+                
+                # Count messages in activity window
+                recent_messages = [
+                    ts for ts in self.chat_activity_timestamps
+                    if now - ts <= activity_window_seconds
+                ]
+                
+                # Clean old timestamps
+                self.chat_activity_timestamps = recent_messages
+                
+                if len(recent_messages) < min_activity:
+                    print(f"[DEBUG] Skipping auto-message: insufficient activity ({len(recent_messages)}/{min_activity})")
+                    continue
+                
+                # Select message
+                if random_order:
+                    message = random.choice(enabled_messages)
+                else:
+                    # Sequential mode
+                    message = enabled_messages[self.auto_msg_index % len(enabled_messages)]
+                    self.auto_msg_index += 1
+                
+                # Send message - use bot's custom send_message method
+                text = message.get("text", "")
+                if text and self.bot:
+                    try:
+                        await self.bot.send_message(text)
+                        
+                        # Log to UI
+                        self.root.after(
+                            0,
+                            lambda t=text: self.log_message(
+                                f"[AUTO] {t}",
+                                "SUCCESS"
+                            )
+                        )
+                        
+                        print(f"[INFO] Auto-message sent: {text[:50]}...")
+                    
+                    except Exception as e:
+                        print(f"[ERROR] Failed to send auto-message: {e}")
+                        import traceback
+                        traceback.print_exc()
+            
+            except asyncio.CancelledError:
+                print("[INFO] Auto-message task cancelled")
+                break
+            
+            except Exception as e:
+                print(f"[ERROR] Auto-message loop error: {e}")
+                import traceback
+                traceback.print_exc()
+                await asyncio.sleep(60)  # Wait before retrying
     
     def run(self) -> None:
         """Start the chat tools main loop."""
@@ -476,7 +790,11 @@ class ChatTools:
             "Click 'Open Settings' to configure Twitch connection, then 'Connect' to start monitoring chat.",
             "INFO"
         )
-        self.root.mainloop()
+        try:
+            self.root.mainloop()
+        finally:
+            # Clean up file watcher on exit
+            self._stop_config_watcher()
 
 
 def main() -> None:
