@@ -5,6 +5,9 @@ from typing import List, Tuple, Dict, Optional, Union, Any
 from colour_schemes import get_colour_scheme, validate_colour_scheme
 from config.enums import TransitionMode, ColourScheme
 from config.settings import Settings
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 class ScreenOverlay:
     def __init__(self, grid_width: int, grid_height: int, square_size: int, display_scale: float = 1.0, 
@@ -53,7 +56,7 @@ class ScreenOverlay:
         self.enable_colour_averaging = False
         self.colour_averaging_interval = 30  # frames
         
-        print(f"ScreenOverlay initialized: {grid_width}x{grid_height}")
+        logger.info(f"ScreenOverlay initialized: {grid_width}x{grid_height}")
     
     def update_effects(self, current_grid: List[List[bool]]) -> None:
         """Update all overlay effects based on current screen state"""
@@ -80,13 +83,13 @@ class ScreenOverlay:
                     self.colour_scheme_name = scheme.value
                 else:
                     self.colour_scheme_name = str(scheme).lower()
-                print(f"Colour scheme changed to: {self.colour_scheme_name}")
+                logger.info(f"Colour scheme changed to: {self.colour_scheme_name}")
                 return True
             else:
-                print(f"Invalid colour scheme format: {scheme}")
+                logger.warning(f"Invalid colour scheme format: {scheme}")
                 return False
         except Exception as e:
-            print(f"Error setting colour scheme {scheme}: {e}")
+            logger.error(f"Error setting colour scheme {scheme}: {e}")
             return False
     
     def set_custom_colour_scheme(self, colours: List[Tuple[int, int, int]]) -> bool:
@@ -94,10 +97,10 @@ class ScreenOverlay:
         if validate_colour_scheme(colours):
             self.current_colour_scheme = colours
             self.colour_scheme_name = 'custom'
-            print(f"Custom colour scheme set with {len(colours)} colours")
+            logger.info(f"Custom colour scheme set with {len(colours)} colours")
             return True
         else:
-            print("Invalid custom colour scheme format")
+            logger.warning("Invalid custom colour scheme format")
             return False
     
     def set_colour_transition_mode(self, mode: Union[TransitionMode, str], snap_duration: Optional[int] = None) -> bool:
@@ -114,20 +117,20 @@ class ScreenOverlay:
             if snap_duration is not None:
                 self.snap_duration = max(1, snap_duration)
             
-            print(f"Colour transition mode set to: {mode_name}")
+            logger.info(f"Colour transition mode set to: {mode_name}")
             if self.colour_transition_mode == TransitionMode.SNAP:
-                print(f"Snap duration: {self.snap_duration} frames")
+                logger.info(f"Snap duration: {self.snap_duration} frames")
             elif self.colour_transition_mode == TransitionMode.MIXED:
-                print("Mixed mode: each ghost gets a random colour from the scheme")
+                logger.info("Mixed mode: each ghost gets a random colour from the scheme")
             elif self.colour_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
-                print("Horizontal spread mode: colours spread horizontally across screen")
+                logger.info("Horizontal spread mode: colours spread horizontally across screen")
             elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
-                print("Vertical spread mode: colours spread vertically across screen")
+                logger.info("Vertical spread mode: colours spread vertically across screen")
             
             return True
         except Exception as e:
-            print(f"Error setting colour transition mode: {e}")
-            print(f"Valid modes: {', '.join(TransitionMode.list_names())}")
+            logger.error(f"Error setting colour transition mode: {e}")
+            logger.info(f"Valid modes: {', '.join(TransitionMode.list_names())}")
             return False
     
     def _get_current_ghost_colour(self) -> Tuple[int, int, int]:
@@ -504,10 +507,10 @@ class ScreenOverlay:
         """Configure colour averaging parameters"""
         if enabled is not None:
             self.enable_colour_averaging = enabled
-            print(f"Colour averaging {'enabled' if enabled else 'disabled'}")
+            logger.info(f"Colour averaging {'enabled' if enabled else 'disabled'}")
         if interval is not None:
             self.colour_averaging_interval = max(1, interval)
-            print(f"Colour averaging interval set to {self.colour_averaging_interval} frames")
+            logger.info(f"Colour averaging interval set to {self.colour_averaging_interval} frames")
     
     def clear_effects(self) -> None:
         """Clear all overlay effects"""

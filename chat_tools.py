@@ -18,6 +18,9 @@ import time
 import random
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class ChatTools:
@@ -298,7 +301,7 @@ class ChatTools:
                         prefix='!'
                     )
                     self.oauth_token = chat_tools_instance.config['oauth_token']
-                    print(f"[DEBUG] Bot initialized for channel: {chat_tools_instance.config['channel']}")
+                    logger.debug(f"Bot initialized for channel: {chat_tools_instance.config['channel']}")
                     
                     # Store broadcaster ID for sending messages
                     self.broadcaster_id: Optional[str] = None
@@ -306,7 +309,7 @@ class ChatTools:
                 async def send_message(self, message: str) -> None:
                     """Send a message to the configured channel using Twitch Helix API directly."""
                     if not self.broadcaster_id:
-                        print("[ERROR] Broadcaster ID not set")
+                        logger.error("Broadcaster ID not set")
                         return
                     
                     # Send chat message using aiohttp directly to Twitch Helix API
@@ -327,14 +330,14 @@ class ChatTools:
                     async with aiohttp.ClientSession() as session:
                         async with session.post(url, headers=headers, json=payload) as resp:
                             if resp.status == 200:
-                                print(f"[DEBUG] Message sent successfully")
+                                logger.debug(f"Message sent successfully")
                             else:
                                 error_text = await resp.text()
-                                print(f"[ERROR] Failed to send message: {resp.status} - {error_text}")
+                                logger.error(f"Failed to send message: {resp.status} - {error_text}")
                 
                 async def setup_hook(self):
                     """Called before connecting - subscribe to chat messages via EventSub WebSocket"""
-                    print(f"[DEBUG] setup_hook called")
+                    logger.debug(f"setup_hook called")
                     
                     # TODO: Implement dual OAuth token support for bot and streamer accounts
                     # TODO: Currently using single bot account token which limits channel data access
@@ -352,14 +355,14 @@ class ChatTools:
                     
                     # Get the channel user to subscribe to their chat
                     channel_name = chat_tools_instance.config['channel']
-                    print(f"[DEBUG] Fetching channel info for: {channel_name}")
+                    logger.debug(f"Fetching channel info for: {channel_name}")
                     
                     try:
                         users = await self.fetch_users(logins=[channel_name])
                         if users:
                             broadcaster = users[0]
                             self.broadcaster_id = broadcaster.id  # Store for sending messages
-                            print(f"[DEBUG] Found broadcaster: {broadcaster.name} (ID: {broadcaster.id})")
+                            logger.debug(f"Found broadcaster: {broadcaster.name} (ID: {broadcaster.id})")
                             
                             # Create subscription payload for chat messages
                             payload = eventsub.ChatMessageSubscription(
@@ -372,7 +375,7 @@ class ChatTools:
                                 payload=payload,
                                 as_bot=True
                             )
-                            print(f"[DEBUG] Successfully subscribed to chat messages")
+                            logger.debug(f"Successfully subscribed to chat messages")
                             
                             # TODO: Add additional EventSub subscriptions when dual OAuth implemented
                             # TODO: Subscribe to channel.subscribe (requires streamer token)
@@ -384,14 +387,14 @@ class ChatTools:
                             # TODO: Subscribe to channel.follow (requires moderator token, bot must be mod)
                             
                         else:
-                            print(f"[ERROR] Could not find channel: {channel_name}")
+                            logger.error(f"Could not find channel: {channel_name}")
                     except Exception as e:
-                        print(f"[ERROR] Failed to subscribe to chat: {e}")
+                        logger.error(f"Failed to subscribe to chat: {e}")
                         import traceback
                         traceback.print_exc()
                 
                 async def event_ready(self):
-                    print(f"[INFO] Bot ready event triggered")
+                    logger.info(f"Bot ready event triggered")
                     chat_tools_instance.is_connected = True
                     chat_tools_instance.root.after(0, chat_tools_instance._update_connection_status)
                     chat_tools_instance.root.after(
@@ -401,7 +404,7 @@ class ChatTools:
                             "SUCCESS"
                         )
                     )
-                    print(f"[INFO] Bot ready and subscribed to channel")
+                    logger.info(f"Bot ready and subscribed to channel")
                     
                     # Start auto-message task
                     chat_tools_instance.auto_msg_task = asyncio.create_task(
@@ -410,14 +413,14 @@ class ChatTools:
                 
                 async def event_message(self, message: ChatMessage):
                     """Handle incoming chat messages from EventSub"""
-                    print(f"[DEBUG] Message event received!")
-                    print(f"[DEBUG] Message type: {type(message)}")
+                    logger.debug(f"Message event received!")
+                    logger.debug(f"Message type: {type(message)}")
                     
                     try:
                         # ChatMessage has .chatter (Chatter object) and .text
                         username = message.chatter.name
                         content = message.text
-                        print(f"[DEBUG] Chat: {username}: {content}")
+                        logger.debug(f"Chat: {username}: {content}")
                         
                         # Track chat activity for auto-messages
                         chat_tools_instance.chat_activity_timestamps.append(time.time())
@@ -435,7 +438,7 @@ class ChatTools:
                         await chat_tools_instance._handle_command(message)
                         
                     except Exception as e:
-                        print(f"[ERROR] Failed to process message: {e}")
+                        logger.error(f"Failed to process message: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -443,14 +446,14 @@ class ChatTools:
                     """Handle errors from twitchio"""
                     if hasattr(payload, 'error'):
                         actual_error = payload.error
-                        print(f"[ERROR] Actual error: {actual_error}")
+                        logger.error(f"Actual error: {actual_error}")
                         error_msg = str(actual_error)
                     else:
                         error_msg = str(payload)
-                        print(f"[ERROR] Bot error: {payload}")
+                        logger.error(f"Bot error: {payload}")
                     
                     if hasattr(payload, 'listener'):
-                        print(f"[ERROR] Failed listener: {payload.listener}")
+                        logger.error(f"Failed listener: {payload.listener}")
                     
                     chat_tools_instance.root.after(
                         0,
@@ -505,14 +508,20 @@ class ChatTools:
         
         if self.bot and self.event_loop:
             try:
-                # Stop the bot
+                # Stop the bot gracefully
                 future = asyncio.run_coroutine_threadsafe(
                     self.bot.close(),
                     self.event_loop
                 )
                 future.result(timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("Bot close timed out, forcing shutdown")
+            except OSError as e:
+                # Suppress Windows overlapped I/O errors during shutdown
+                if e.winerror != 6:  # Ignore "handle is invalid" errors
+                    logger.warning(f"Error during disconnect: {e}")
             except Exception as e:
-                self.log_message(f"Error during disconnect: {e}", "WARNING")
+                logger.warning(f"Error during disconnect: {e}")
         
         self.is_connected = False
         self.bot = None
@@ -576,7 +585,7 @@ class ChatTools:
             def on_modified(self, event):
                 """Called when config file is modified."""
                 if event.src_path == str(chat_tools_instance.config_path):
-                    print(f"[INFO] Config file changed, reloading...")
+                    logger.info(f"Config file changed, reloading...")
                     # Reload in main thread with small delay to ensure file write is complete
                     chat_tools_instance.root.after(500, chat_tools_instance._reload_config)
         
@@ -589,7 +598,7 @@ class ChatTools:
             recursive=False
         )
         self.config_observer.start()
-        print("[INFO] Config file watcher started")
+        logger.info("Config file watcher started")
     
     def _reload_config(self) -> None:
         """Reload configuration from file without reconnecting."""
@@ -634,10 +643,14 @@ class ChatTools:
     def _stop_config_watcher(self) -> None:
         """Stop watching config file."""
         if self.config_observer:
-            self.config_observer.stop()
-            self.config_observer.join()
-            self.config_observer = None
-            print("[INFO] Config file watcher stopped")
+            try:
+                self.config_observer.stop()
+                self.config_observer.join(timeout=2.0)
+            except Exception:
+                pass  # Suppress errors during shutdown
+            finally:
+                self.config_observer = None
+                logger.info("Config file watcher stopped")
     
     async def _handle_command(self, message: Any) -> None:
         """Handle chat command if message matches configured commands."""
@@ -728,7 +741,7 @@ class ChatTools:
                 print(f"[INFO] Command {trigger} executed by {username}")
             
             except Exception as e:
-                print(f"[ERROR] Failed to send command response: {e}")
+                logger.error(f"Failed to send command response: {e}")
                 import traceback
                 traceback.print_exc()
     
@@ -785,7 +798,7 @@ class ChatTools:
                 self.chat_activity_timestamps = recent_messages
                 
                 if len(recent_messages) < min_activity:
-                    print(f"[DEBUG] Skipping auto-message: insufficient activity ({len(recent_messages)}/{min_activity})")
+                    logger.debug(f"Skipping auto-message: insufficient activity ({len(recent_messages)}/{min_activity})")
                     continue
                 
                 # Select message
@@ -814,16 +827,16 @@ class ChatTools:
                         print(f"[INFO] Auto-message sent: {text[:50]}...")
                     
                     except Exception as e:
-                        print(f"[ERROR] Failed to send auto-message: {e}")
+                        logger.error(f"Failed to send auto-message: {e}")
                         import traceback
                         traceback.print_exc()
             
             except asyncio.CancelledError:
-                print("[INFO] Auto-message task cancelled")
+                logger.info("Auto-message task cancelled")
                 break
             
             except Exception as e:
-                print(f"[ERROR] Auto-message loop error: {e}")
+                logger.error(f"Auto-message loop error: {e}")
                 import traceback
                 traceback.print_exc()
                 await asyncio.sleep(60)  # Wait before retrying
@@ -838,8 +851,13 @@ class ChatTools:
         try:
             self.root.mainloop()
         finally:
-            # Clean up file watcher on exit
-            self._stop_config_watcher()
+            # Clean up gracefully on exit
+            try:
+                self._stop_config_watcher()
+                if self.is_connected:
+                    self.disconnect_from_twitch()
+            except Exception:
+                pass  # Suppress errors during cleanup
 
 
 def main() -> None:
@@ -848,9 +866,9 @@ def main() -> None:
         chat_tools = ChatTools()
         chat_tools.run()
     except KeyboardInterrupt:
-        print("\nChat tools interrupted by user.")
+        logger.info("Chat tools interrupted by user.")
     except Exception as e:
-        print(f"Error starting chat tools: {e}")
+        logger.error(f"Error starting chat tools: {e}")
 
 
 if __name__ == "__main__":

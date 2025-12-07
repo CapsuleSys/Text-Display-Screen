@@ -8,12 +8,15 @@ from screen_overlay import ScreenOverlay
 from colour_schemes import list_colour_schemes
 from config.enums import DisplayType, ColourScheme, TransitionMode
 from config.settings import Settings
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 class ScreenDisplayer:
     def __init__(self, grid_width: int = 20, grid_height: int = 10, square_size: int = 30, 
                  display_scale: float = 1.0, display_type: DisplayType = DisplayType.PIXEL_GRID,
                  settings: Optional[Settings] = None):
-        print(f"Initializing ScreenDisplayer: {grid_width}x{grid_height}, square_size={square_size}, scale={display_scale}, type={display_type.name}")
+        logger.info(f"Initializing ScreenDisplayer: {grid_width}x{grid_height}, square_size={square_size}, scale={display_scale}, type={display_type.name}")
         
         # Store settings reference, create default if none provided
         self.settings = settings if settings is not None else Settings.create_default()
@@ -34,7 +37,7 @@ class ScreenDisplayer:
         self.screen_width = int(self.logical_width * display_scale)
         self.screen_height = int(self.logical_height * display_scale)
         
-        print(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
+        logger.info(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
         
         # Colour definitions
         self.colours = {
@@ -59,9 +62,9 @@ class ScreenDisplayer:
             pygame.display.set_caption("Screen Displayer")
             self.clock = pygame.time.Clock()
             self.running = True
-            print("Pygame display initialized successfully")
+            logger.info("Pygame display initialized successfully")
         except Exception as e:
-            print(f"Error initializing pygame display: {e}")
+            logger.error(f"Error initializing pygame display: {e}")
             raise
         
         # Add transition system
@@ -77,7 +80,7 @@ class ScreenDisplayer:
         self.overlay = ScreenOverlay(grid_width, grid_height, square_size, display_scale, self.settings)
         self.overlay_enabled = True
         
-        print("ScreenDisplayer initialization complete")
+        logger.info("ScreenDisplayer initialization complete")
     
     def load_text_file(self, filepath: str) -> None:
         """Load text from file and save to class variable as blocks separated by empty lines"""
@@ -102,20 +105,20 @@ class ScreenDisplayer:
                 blocks.append("\n".join(current_block))
             
             self.text_content = blocks
-            print(f"Loaded {len(blocks)} text blocks from {filepath}")
+            logger.info(f"Loaded {len(blocks)} text blocks from {filepath}")
             
         except FileNotFoundError:
-            print(f"File {filepath} not found. Using empty text.")
+            logger.warning(f"File {filepath} not found. Using empty text.")
             self.text_content = []
         except Exception as e:
-            print(f"Error loading file: {e}")
+            logger.error(f"Error loading file: {e}")
             self.text_content = []
     
     def start_transition_to_text(self, block_index: int) -> None:
         """Start a transition to new text content"""
         if block_index < len(self.text_content):
             start_time = time.time()
-            print(f"[TIMING] Starting transition to block {block_index} at {start_time:.3f}")
+            logger.debug(f"Starting transition to block {block_index} at {start_time:.3f}")
             
             # Create target grid with new text
             self.target_grid = [[False for _ in range(self.grid_width)] for _ in range(self.grid_height)]
@@ -129,8 +132,8 @@ class ScreenDisplayer:
                         self.transition_pixels.append((row, col))
             
             setup_time = time.time() - start_time
-            print(f"[TIMING] Text transition setup: {len(self.transition_pixels)} pixels to change, setup took {setup_time*1000:.1f}ms")
-            print(f"[TIMING] Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
+            logger.debug(f"Text transition setup: {len(self.transition_pixels)} pixels to change, setup took {setup_time*1000:.1f}ms")
+            logger.debug(f"Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
             
             # Randomize the order of pixel changes
             random.shuffle(self.transition_pixels)
@@ -140,7 +143,7 @@ class ScreenDisplayer:
     def start_transition_to_blank(self) -> None:
         """Start a transition to blank/empty display"""
         start_time = time.time()
-        print(f"[TIMING] Starting transition to blank display at {start_time:.3f}")
+        logger.debug(f"Starting transition to blank display at {start_time:.3f}")
         
         # Create target grid with empty text (much faster than transitioning all pixels)
         self.target_grid = [[False for _ in range(self.grid_width)] for _ in range(self.grid_height)]
@@ -154,8 +157,8 @@ class ScreenDisplayer:
                     self.transition_pixels.append((row, col))
         
         setup_time = time.time() - start_time
-        print(f"[TIMING] Blank transition setup: {len(self.transition_pixels)} pixels to turn off, setup took {setup_time*1000:.1f}ms")
-        print(f"[TIMING] Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
+        logger.debug(f"Blank transition setup: {len(self.transition_pixels)} pixels to turn off, setup took {setup_time*1000:.1f}ms")
+        logger.debug(f"Estimated transition time: {len(self.transition_pixels) / self.transition_speed:.1f} frames at {self.transition_speed} px/frame")
         
         # Randomize the order of pixel changes
         random.shuffle(self.transition_pixels)
@@ -186,16 +189,16 @@ class ScreenDisplayer:
         if not self.transition_pixels:
             self.is_transitioning = False
             self.transition_accumulator = 0.0  # Reset accumulator when transition completes
-            print("Transition complete")
+            logger.debug("Transition complete")
             # Copy target to grid for compatibility with existing code
             self.grid = [[int(self.target_grid[row][col]) for col in range(self.grid_width)] for row in range(self.grid_height)]
     
     def display_text(self, block_index: int = 0) -> None:
         """Display a specific text block by starting a transition to it"""
-        print(f"display_text called with block_index: {block_index}")
+        logger.debug(f"display_text called with block_index: {block_index}")
         
         if not self.text_content or block_index >= len(self.text_content):
-            print("No text content or invalid block index")
+            logger.warning("No text content or invalid block index")
             return
         
         # Use the transition system instead of immediate update
@@ -205,7 +208,7 @@ class ScreenDisplayer:
         """Set the colour for lit squares"""
         if colour_name in self.colours:
             self.selected_colour = self.colours[colour_name]
-            print(f"Colour set to: {colour_name}")
+            logger.info(f"Colour set to: {colour_name}")
     
     def update_grid(self, new_grid: List[List[int]]) -> None:
         """Update the grid with new data"""
@@ -215,7 +218,7 @@ class ScreenDisplayer:
     def set_transition_speed(self, speed: float) -> None:
         """Set how many pixels change per frame during transitions. Higher = faster. Supports fractional values."""
         self.transition_speed = max(0.1, speed)  # Ensure at least 0.1 pixels per frame
-        print(f"Transition speed set to: {speed} pixels per frame")
+        logger.info(f"Transition speed set to: {speed} pixels per frame")
     
     def get_transition_speed(self) -> float:
         """Get the current transition speed."""
@@ -304,10 +307,10 @@ class ScreenDisplayer:
             self._debug_counter = 0
             
         if self._debug_counter % self.settings.debug.debug_output_interval == 0:
-            print(f"Drew {pixels_drawn} pixels")
+            logger.debug(f"Drew {pixels_drawn} pixels")
             if self.overlay_enabled:
                 stats = self.overlay.get_effect_stats()
-                print(f"Overlay effects - Ghost: {stats['ghost_pixels']}, Flicker: {stats['flicker_pixels']}")
+                logger.debug(f"Overlay effects - Ghost: {stats['ghost_pixels']}, Flicker: {stats['flicker_pixels']}")
     
     def handle_events(self) -> None:
         """Handle pygame events"""
@@ -319,10 +322,10 @@ class ScreenDisplayer:
                     self.running = False
                 elif event.key == pygame.K_o:  # Toggle overlay
                     self.overlay_enabled = not self.overlay_enabled
-                    print(f"Overlay effects: {'ON' if self.overlay_enabled else 'OFF'}")
+                    logger.info(f"Overlay effects: {'ON' if self.overlay_enabled else 'OFF'}")
                 elif event.key == pygame.K_c:  # Clear overlay effects
                     self.overlay.clear_effects()
-                    print("Overlay effects cleared")
+                    logger.info("Overlay effects cleared")
                 elif event.key == pygame.K_t:  # Cycle through colour schemes
                     # Get current scheme from overlay directly
                     current_scheme = self.overlay.colour_scheme_name
@@ -339,7 +342,7 @@ class ScreenDisplayer:
                     
                     next_scheme = all_schemes[next_index]
                     self.set_ghost_colour_scheme(next_scheme)
-                    print(f"Colour scheme changed to: {next_scheme.value}")
+                    logger.info(f"Colour scheme changed to: {next_scheme.value}")
                 elif event.key == pygame.K_m:  # Toggle colour transition mode
                     # Get current mode from overlay directly
                     current_mode = self.overlay.colour_transition_mode
@@ -357,7 +360,7 @@ class ScreenDisplayer:
                         new_mode = TransitionMode.SMOOTH
                     
                     self.set_colour_transition_mode(new_mode)
-                    print(f"Colour transition mode changed to: {new_mode.value}")
+                    logger.info(f"Colour transition mode changed to: {new_mode.value}")
     
     def configure_overlay_effects(self, ghost_chance: Optional[float] = None, ghost_decay: Optional[float] = None,
                                 flicker_chance: Optional[float] = None, flicker_intensity: Optional[float] = None,
@@ -428,14 +431,14 @@ class ScreenDisplayer:
     def set_display_type(self, display_type: DisplayType) -> None:
         """Set the display type. Note: Currently only PIXEL_GRID is implemented."""
         if display_type != DisplayType.PIXEL_GRID:
-            print(f"Warning: Display type {display_type.name} not yet implemented. Using PIXEL_GRID.")
+            logger.warning(f"Display type {display_type.name} not yet implemented. Using PIXEL_GRID.")
             display_type = DisplayType.PIXEL_GRID
         self.display_type = display_type
-        print(f"Display type set to: {display_type.name}")
+        logger.info(f"Display type set to: {display_type.name}")
     
     def run(self, fps: int = 60, transition_manager=None) -> None:
         """Main display loop with optional transition manager"""
-        print(f"Starting main loop at {fps} FPS")
+        logger.info(f"Starting main loop at {fps} FPS")
         
         while self.running:
             # Handle events
@@ -455,4 +458,4 @@ class ScreenDisplayer:
             # Control frame rate
             self.clock.tick(fps)
         
-        print("Main loop ended")
+        logger.info("Main loop ended")

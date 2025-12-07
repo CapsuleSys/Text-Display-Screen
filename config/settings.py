@@ -11,6 +11,9 @@ from typing import List, Tuple, Optional, Dict, Any, Union
 from config.enums import DisplayType, ColourScheme, TransitionMode, OverlayEffect, RGB, DEFAULT_DISPLAY_TYPE, DEFAULT_COLOUR_SCHEME, DEFAULT_TRANSITION_MODE, DEFAULT_OVERLAY_EFFECT
 import json
 import os
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 
 @dataclass
@@ -497,17 +500,17 @@ class Settings:
             data = self.to_dict()
             with open(filepath, 'w') as f:
                 json.dump(data, f, indent=2)
-            print(f"Settings saved to: {filepath}")
+            logger.info(f"Settings saved to: {filepath}")
             return True
         except Exception as e:
-            print(f"Error saving settings to {filepath}: {e}")
+            logger.error(f"Error saving settings to {filepath}: {e}")
             return False
     
     @classmethod
     def load_from_file(cls, filepath: str) -> 'Settings':
         """Load settings from a JSON file. Returns default settings if file doesn't exist or is invalid."""
         if not os.path.exists(filepath):
-            print(f"Settings file {filepath} not found. Using defaults.")
+            logger.warning(f"Settings file {filepath} not found. Using defaults.")
             return cls.create_default()
         
         try:
@@ -515,13 +518,13 @@ class Settings:
                 data = json.load(f)
             settings = cls.from_dict(data)
             if settings.validate():
-                print(f"Settings loaded from: {filepath}")
+                logger.info(f"Settings loaded from: {filepath}")
                 return settings
             else:
-                print(f"Invalid settings in {filepath}. Using defaults.")
+                logger.warning(f"Invalid settings in {filepath}. Using defaults.")
                 return cls.create_default()
         except Exception as e:
-            print(f"Error loading settings from {filepath}: {e}. Using defaults.")
+            logger.error(f"Error loading settings from {filepath}: {e}. Using defaults.")
             return cls.create_default()
     
     def apply_to_displayer(self, displayer) -> None:
@@ -545,13 +548,13 @@ class Settings:
         # Set display type
         displayer.set_display_type(self.display.display_type)
         
-        print("Settings applied to ScreenDisplayer")
+        logger.debug("Settings applied to ScreenDisplayer")
     
     def apply_to_transition_manager(self, transition_manager) -> None:
         """Apply settings to a TransitionManager instance."""
         transition_manager.set_text_change_interval(self.transition.text_change_interval)
         transition_manager.blank_time_between_transitions = self.transition.blank_time_between_transitions
-        print("Settings applied to TransitionManager")
+        logger.debug("Settings applied to TransitionManager")
     
     def get_summary(self) -> str:
         """Get a human-readable summary of current settings."""

@@ -32,13 +32,13 @@ Comprehensive refactoring to address:
 
 ## Phase 1: Quick Wins (12-17 hours)
 
-**Status**: ⏳ **PHASE 1.4 COMPLETE** ✅ (4/5 sub-phases complete)
+**Status**: ✅ **PHASE 1 COMPLETE** (5/5 sub-phases complete)
 - ✅ Phase 1.1: Type Hints & Docstrings COMPLETE
 - ✅ Phase 1.2: Extract Duplicate Code COMPLETE (settings_gui.py -88 lines!)
 - ✅ Phase 1.3: Implement Missing Functions COMPLETE
 - ✅ Phase 1.4: Standardise British English COMPLETE
-- ⏳ Phase 1.5: Replace print() with logging (pending)  
-**Target**: Complete within 1 week
+- ✅ Phase 1.5: Replace print() with logging COMPLETE (7 core files fully migrated!)  
+**Status**: ✅ COMPLETE - Ready for Phase 2
 
 ### 1.1 Type Hints & Docstrings (4-6 hours)
 - [x] Add type hints to all function signatures in `settings_gui.py`

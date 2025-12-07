@@ -4,6 +4,9 @@ import time
 from typing import List, Optional, Callable, TYPE_CHECKING, Type
 from enum import Enum
 from config.settings import Settings
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 if TYPE_CHECKING:
     from screendisplayer import ScreenDisplayer
@@ -66,7 +69,7 @@ class TransitionManager:
         # Callbacks for custom behavior
         self.on_text_change: Optional[Callable[[int], None]] = None
         
-        print("TransitionManager initialised")
+        logger.info("TransitionManager initialised")
     
     def _initialise_text_order(self) -> None:
         """Initialise or regenerate the text order based on current settings"""
@@ -81,10 +84,10 @@ class TransitionManager:
         if self.settings.transition.shuffle_text_order:
             # Only shuffle if we're turning shuffle ON (not every time settings reload)
             random.shuffle(self.text_order_indices)
-            print(f"Text order shuffled: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
+            logger.info(f"Text order shuffled: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
         else:
             # Keep sequential order when shuffle is OFF
-            print(f"Text order sequential: 0 to {len(self.text_order_indices)-1}")
+            logger.info(f"Text order sequential: 0 to {len(self.text_order_indices)-1}")
             
         self.current_order_position = 0
     
@@ -112,9 +115,9 @@ class TransitionManager:
             random.shuffle(order_indices)
             display_values = [e.value for e in order_indices[:5]]
             suffix = "..." if len(order_indices) > 5 else ""
-            print(f"{enum_name} order shuffled: {display_values}{suffix}")
+            logger.info(f"{enum_name} order shuffled: {display_values}{suffix}")
         else:
-            print(f"{enum_name} order sequential: {len(order_indices)} items")
+            logger.info(f"{enum_name} order sequential: {len(order_indices)} items")
         
         return order_indices
     
@@ -146,7 +149,7 @@ class TransitionManager:
             order_indices = self._initialise_enum_order(enum_type, new_order_mode, enum_name)
             setattr(self, order_indices_attr, order_indices)
             setattr(self, position_attr, 0)
-            print(f"{enum_name} order changed to {new_order_mode}")
+            logger.info(f"{enum_name} order changed to {new_order_mode}")
         
         setattr(self, last_order_mode_attr, new_order_mode)
     
@@ -163,11 +166,11 @@ class TransitionManager:
                 # Turning shuffle ON - create new shuffled order
                 self.text_order_indices = list(range(len(self.displayer.text_content)))
                 random.shuffle(self.text_order_indices)
-                print(f"Shuffle enabled - new order: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
+                logger.info(f"Shuffle enabled - new order: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
             else:
                 # Turning shuffle OFF - return to sequential order
                 self.text_order_indices = list(range(len(self.displayer.text_content)))
-                print(f"Shuffle disabled - returning to sequential order: 0 to {len(self.text_order_indices)-1}")
+                logger.info(f"Shuffle disabled - returning to sequential order: 0 to {len(self.text_order_indices)-1}")
             
             # Reset position to start of new order
             self.current_order_position = 0
@@ -187,7 +190,7 @@ class TransitionManager:
                     
                     # Check if shuffle setting changed
                     if current_shuffle != self._last_shuffle_setting:
-                        print(f"[SHUFFLE] Setting changed: {self._last_shuffle_setting} -> {current_shuffle}")
+                        logger.debug(f"Setting changed: {self._last_shuffle_setting} -> {current_shuffle}")
                         
                         # Update our settings reference
                         self.settings.transition.shuffle_text_order = current_shuffle
@@ -196,7 +199,7 @@ class TransitionManager:
                         self._update_text_order_for_shuffle_change(current_shuffle)
                         
             except Exception as e:
-                print(f"Error checking shuffle setting changes: {e}")
+                logger.error(f"Error checking shuffle setting changes: {e}")
     
     def _get_next_text_block(self) -> int:
         """Get the next text block index according to current ordering (shuffled or sequential)"""
@@ -216,9 +219,9 @@ class TransitionManager:
         # If shuffle is disabled, sequential order will naturally repeat (0,1,2,3,0,1,2,3...)
         if self.current_order_position == 0 and self.settings.transition.shuffle_text_order:
             random.shuffle(self.text_order_indices)
-            print(f"Reshuffled text order for new cycle: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
+            logger.debug(f"Reshuffled text order for new cycle: {self.text_order_indices[:10]}{'...' if len(self.text_order_indices) > 10 else ''}")
         elif self.current_order_position == 0 and not self.settings.transition.shuffle_text_order:
-            print("Sequential order cycle completed, continuing with: 0, 1, 2, 3...")
+            logger.debug("Sequential order cycle completed, continuing with: 0, 1, 2, 3...")
         
         # Update current_text_block for compatibility
         self.current_text_block = next_block
@@ -288,39 +291,39 @@ class TransitionManager:
                 current_color_scheme_order = current_settings.transition.colour_scheme_order
                 
                 if current_color_scheme_enabled != self._last_colour_scheme_setting:
-                    print(f"[EFFECT] Colour scheme transition: {self._last_colour_scheme_setting} -> {current_color_scheme_enabled}")
-                    self.settings.transition.transition_colour_scheme = current_color_scheme_enabled
-                    self._last_colour_scheme_setting = current_color_scheme_enabled
-                    
-                    # Initialize order list if just enabled
-                    if current_color_scheme_enabled:
-                        self._initialise_colour_scheme_order()
+                    logger.debug(f"Colour scheme transition: {self._last_colour_scheme_setting} -> {current_color_scheme_enabled}")
+                self.settings.transition.transition_colour_scheme = current_color_scheme_enabled
+                self._last_colour_scheme_setting = current_color_scheme_enabled
                 
+                # Initialize order list if just enabled
+                if current_color_scheme_enabled:
+                    self._initialise_colour_scheme_order()
+            
                 if current_color_scheme_order != self._last_colour_scheme_order:
-                    print(f"[EFFECT] Colour scheme order: {self._last_colour_scheme_order} -> {current_color_scheme_order}")
-                    self.settings.transition.colour_scheme_order = current_color_scheme_order
-                    self._update_colour_scheme_order_for_mode_change(current_color_scheme_order)
+                    logger.debug(f"Colour scheme order: {self._last_colour_scheme_order} -> {current_color_scheme_order}")
+                self.settings.transition.colour_scheme_order = current_color_scheme_order
+                self._update_colour_scheme_order_for_mode_change(current_color_scheme_order)
                 
                 # Check transition mode setting changes
                 current_transition_mode_enabled = current_settings.transition.transition_colour_mode
                 current_transition_mode_order = current_settings.transition.colour_mode_order
                 
                 if current_transition_mode_enabled != self._last_transition_mode_setting:
-                    print(f"[EFFECT] Transition mode transition: {self._last_transition_mode_setting} -> {current_transition_mode_enabled}")
-                    self.settings.transition.transition_colour_mode = current_transition_mode_enabled
-                    self._last_transition_mode_setting = current_transition_mode_enabled
-                    
-                    # Initialize order list if just enabled
-                    if current_transition_mode_enabled:
-                        self._initialise_transition_mode_order()
+                    logger.debug(f"Transition mode transition: {self._last_transition_mode_setting} -> {current_transition_mode_enabled}")
+                self.settings.transition.transition_colour_mode = current_transition_mode_enabled
+                self._last_transition_mode_setting = current_transition_mode_enabled
                 
+                # Initialize order list if just enabled
+                if current_transition_mode_enabled:
+                    self._initialise_transition_mode_order()
+            
                 if current_transition_mode_order != self._last_transition_mode_order:
-                    print(f"[EFFECT] Transition mode order: {self._last_transition_mode_order} -> {current_transition_mode_order}")
-                    self.settings.transition.colour_mode_order = current_transition_mode_order
-                    self._update_transition_mode_order_for_mode_change(current_transition_mode_order)
+                    logger.debug(f"Transition mode order: {self._last_transition_mode_order} -> {current_transition_mode_order}")
+                self.settings.transition.colour_mode_order = current_transition_mode_order
+                self._update_transition_mode_order_for_mode_change(current_transition_mode_order)
                 
         except Exception as e:
-            print(f"Error checking effect transition setting changes: {e}")
+            logger.error(f"Error checking effect transition setting changes: {e}")
     
     def set_text_change_interval(self, frames: int) -> None:
         """Set how many frames between text changes"""
@@ -331,7 +334,7 @@ class TransitionManager:
         self.text_file_path = file_path
         if os.path.exists(file_path):
             self.last_file_mtime = os.path.getmtime(file_path)
-            print(f"File monitoring enabled for: {file_path}")
+            logger.info(f"File monitoring enabled for: {file_path}")
     
     def _check_file_changes(self) -> None:
         """Check if the monitored text file and settings file have been modified"""
@@ -339,23 +342,23 @@ class TransitionManager:
         if self.text_file_path and os.path.exists(self.text_file_path):
             current_mtime = os.path.getmtime(self.text_file_path)
             if current_mtime > self.last_file_mtime:
-                print(f"Text file {self.text_file_path} was modified. Reloading...")
+                logger.info(f"Text file {self.text_file_path} was modified. Reloading...")
                 try:
                     self.displayer.load_text_file(self.text_file_path)
                     self.last_file_mtime = current_mtime
-                    print(f"Successfully reloaded {len(self.displayer.text_content)} text blocks")
+                    logger.info(f"Successfully reloaded {len(self.displayer.text_content)} text blocks")
                     
                     # Reinitialise text order with new content
                     self._initialise_text_order()
                     
                 except Exception as e:
-                    print(f"Error reloading text file: {e}")
+                    logger.error(f"Error reloading text file: {e}")
         
         # Check settings file changes
         if os.path.exists(self.settings_file_path):
             current_settings_mtime = os.path.getmtime(self.settings_file_path)
             if current_settings_mtime > self.last_settings_mtime:
-                print(f"Settings file {self.settings_file_path} was modified. Reloading...")
+                logger.info(f"Settings file {self.settings_file_path} was modified. Reloading...")
                 try:
                     new_settings = Settings.load_from_file(self.settings_file_path)
                     self.settings = new_settings
@@ -368,19 +371,19 @@ class TransitionManager:
                     self.blank_time_between_transitions = self.settings.transition.blank_time_between_transitions
                     
                     self.last_settings_mtime = current_settings_mtime
-                    print("Successfully reloaded and applied settings")
+                    logger.info("Successfully reloaded and applied settings")
                     
                     # Update text order based on shuffle setting change
                     self._update_text_order_for_shuffle_change(self.settings.transition.shuffle_text_order)
                     
                 except Exception as e:
-                    print(f"Error reloading settings file: {e}")
+                    logger.error(f"Error reloading settings file: {e}")
         
         # Check text file selection changes
         if os.path.exists(self.text_file_selection_path):
             current_text_selection_mtime = os.path.getmtime(self.text_file_selection_path)
             if current_text_selection_mtime > self.last_text_selection_mtime:
-                print(f"Text file selection {self.text_file_selection_path} was modified. Switching text file...")
+                logger.info(f"Text file selection {self.text_file_selection_path} was modified. Switching text file...")
                 try:
                     with open(self.text_file_selection_path, 'r', encoding='utf-8') as f:
                         new_text_file = f.read().strip()
@@ -401,13 +404,13 @@ class TransitionManager:
                         self.current_text_block = first_block
                         self.displayer.display_text(first_block)
                         
-                        print(f"Successfully switched to text file: {new_text_file}")
-                        print(f"New file contains {len(self.displayer.text_content)} text blocks")
+                        logger.info(f"Successfully switched to text file: {new_text_file}")
+                        logger.info(f"New file contains {len(self.displayer.text_content)} text blocks")
                     
                     self.last_text_selection_mtime = current_text_selection_mtime
                     
                 except Exception as e:
-                    print(f"Error switching text file: {e}")
+                    logger.error(f"Error switching text file: {e}")
     
     def update(self) -> None:
         """Update the transition manager - call this every frame"""
@@ -437,7 +440,7 @@ class TransitionManager:
         # Check if it's time for a text change
         text_change_due = self.frame_count % self.text_change_interval == 0
         if text_change_due:
-            print(f"[TIMING] Frame {self.frame_count}: Text change due! Starting text change process")
+            logger.debug(f"Frame {self.frame_count}: Text change due! Starting text change process")
             self._handle_text_change()
     
     def _apply_effect_transitions(self) -> None:
@@ -456,14 +459,14 @@ class TransitionManager:
                 # Reshuffle on cycle completion if in random mode
                 if self.current_colour_scheme_position == 0 and self.settings.transition.colour_scheme_order == "random":
                     random.shuffle(self.colour_scheme_order_indices)
-                    print(f"[EFFECT] Reshuffled Colour scheme order for new cycle")
+                    logger.debug(f"Reshuffled Colour scheme order for new cycle")
                 
-                print(f"[EFFECT] Sequential Colour scheme: {next_scheme.value}")
+                logger.debug(f"Sequential Colour scheme: {next_scheme.value}")
             else:  # random
                 # Pick random Colour scheme
                 from config.enums import ColourScheme
                 next_scheme = random.choice(list(ColourScheme))
-                print(f"[EFFECT] Random Colour scheme: {next_scheme.value}")
+                logger.debug(f"Random Colour scheme: {next_scheme.value}")
             
             # Apply to displayer
             self.displayer.set_ghost_colour_scheme(next_scheme)
@@ -481,14 +484,14 @@ class TransitionManager:
                 # Reshuffle on cycle completion if in random mode
                 if self.current_transition_mode_position == 0 and self.settings.transition.colour_mode_order == "random":
                     random.shuffle(self.transition_mode_order_indices)
-                    print(f"[EFFECT] Reshuffled transition mode order for new cycle")
+                    logger.debug(f"Reshuffled transition mode order for new cycle")
                 
-                print(f"[EFFECT] Sequential transition mode: {next_mode.value}")
+                logger.debug(f"Sequential transition mode: {next_mode.value}")
             else:  # random
                 # Pick random transition mode
                 from config.enums import TransitionMode
                 next_mode = random.choice(list(TransitionMode))
-                print(f"[EFFECT] Random transition mode: {next_mode.value}")
+                logger.debug(f"Random transition mode: {next_mode.value}")
             
             # Apply to displayer
             self.displayer.set_colour_transition_mode(next_mode)
@@ -505,7 +508,7 @@ class TransitionManager:
                 self.settings.transition.ghost_decay_max
             )
             
-            print(f"[EFFECT] Ghost params: chance={ghost_chance:.3f}, decay={ghost_decay:.4f}")
+            logger.debug(f"Ghost params: chance={ghost_chance:.3f}, decay={ghost_decay:.4f}")
             
             # Apply to displayer
             self.displayer.configure_overlay_effects(
@@ -525,7 +528,7 @@ class TransitionManager:
                 self.settings.transition.flicker_intensity_max
             )
             
-            print(f"[EFFECT] Flicker params: chance={flicker_chance:.3f}, intensity={flicker_intensity:.3f}")
+            logger.debug(f"Flicker params: chance={flicker_chance:.3f}, intensity={flicker_intensity:.3f}")
             
             # Apply to displayer
             self.displayer.configure_overlay_effects(
@@ -541,7 +544,7 @@ class TransitionManager:
                 self.settings.transition.speed_max
             )
             
-            print(f"[EFFECT] Speed variation: {speed:.1f} px/frame")
+            logger.debug(f"Speed variation: {speed:.1f} px/frame")
             
             # Apply to displayer
             self.displayer.set_transition_speed(speed)
@@ -559,16 +562,16 @@ class TransitionManager:
             self.blank_period_start_time = current_time
             
             # Transition to empty/blank display
-            print(f"[TIMING] Frame {self.frame_count}: Starting blank transition (target: {self.blank_time_between_transitions} frames)")
-            print(f"[DEBUG] blank_time_between_transitions = {self.blank_time_between_transitions}")
-            print(f"[DEBUG] Settings blank_time = {self.settings.transition.blank_time_between_transitions}")
+            logger.debug(f"Frame {self.frame_count}: Starting blank transition (target: {self.blank_time_between_transitions} frames)")
+            logger.debug(f"blank_time_between_transitions = {self.blank_time_between_transitions}")
+            logger.debug(f"Settings blank_time = {self.settings.transition.blank_time_between_transitions}")
             self.displayer.start_transition_to_blank()
             return
             
         # No blank time - apply effect transitions then transition directly to next text
         self._apply_effect_transitions()
         next_block = self._get_next_text_block()
-        print(f"[TIMING] Frame {self.frame_count}: Starting text transition to block {next_block}")
+        logger.debug(f"Frame {self.frame_count}: Starting text transition to block {next_block}")
         self.displayer.display_text(next_block)
         
         # Call callback if set
@@ -584,18 +587,18 @@ class TransitionManager:
         frames_elapsed = self.frame_count - self.blank_period_start_frame
         time_elapsed = current_time - self.blank_period_start_time
         
-        print(f"[TIMING] Frame {self.frame_count}: Checking blank period - {frames_elapsed}/{self.blank_time_between_transitions} frames ({time_elapsed:.2f}s)")
+        logger.debug(f"Frame {self.frame_count}: Checking blank period - {frames_elapsed}/{self.blank_time_between_transitions} frames ({time_elapsed:.2f}s)")
         
         if frames_elapsed >= self.blank_time_between_transitions:
             self.is_in_blank_period = False
-            print(f"[TIMING] Frame {self.frame_count}: Blank period complete after {frames_elapsed} frames ({time_elapsed:.2f}s), transitioning to next text")
+            logger.debug(f"Frame {self.frame_count}: Blank period complete after {frames_elapsed} frames ({time_elapsed:.2f}s), transitioning to next text")
             
             # Apply effect transitions now that blank period is complete
             self._apply_effect_transitions()
             
             # Immediately transition to next text
             next_block = self._get_next_text_block()
-            print(f"[TIMING] Frame {self.frame_count}: Starting text transition to block {next_block}")
+            logger.debug(f"Frame {self.frame_count}: Starting text transition to block {next_block}")
             self.displayer.display_text(next_block)
             
             # Call callback if set
@@ -626,7 +629,7 @@ class TransitionManager:
             self.displayer.display_text(first_block)
             self.current_text_block = first_block
             
-            print("Initial display started")
+            logger.info("Initial display started")
     
     def get_status(self) -> dict:
         """Get current status information"""
@@ -642,4 +645,4 @@ class TransitionManager:
         if self.on_text_change:
             self.on_text_change(self.current_text_block)
         
-        print(f"Text changed to block: {self.current_text_block}")
+        logger.debug(f"Text changed to block: {self.current_text_block}")

@@ -17,6 +17,9 @@ from config.settings import (
     create_performance_settings
 )
 from config.enums import DisplayType, ColourScheme, TransitionMode, OverlayEffect
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class SettingsGUI:
@@ -971,7 +974,7 @@ class SettingsGUI:
             setattr(obj, path_parts[-1], converted_value)
             
         except Exception as e:
-            print(f"Error updating setting {settings_path}: {e}")
+            logger.error(f"Error updating setting {settings_path}: {e}")
     
     def _load_current_settings(self) -> None:
         """Load current settings from file if it exists."""
@@ -981,7 +984,7 @@ class SettingsGUI:
                 self.settings = Settings.load_from_file(settings_file)
                 self._update_widgets_from_settings()
             except Exception as e:
-                print(f"Error loading settings: {e}")
+                logger.error(f"Error loading settings: {e}")
     
     def _update_widgets_from_settings(self) -> None:
         """Update all widgets to reflect current settings values."""
@@ -1197,7 +1200,7 @@ class SettingsGUI:
                     self.current_text_file = saved_file
                     self.text_file_var.set(saved_file)
         except Exception as e:
-            print(f"Error loading text file selection: {e}")
+            logger.error(f"Error loading text file selection: {e}")
     
     def run(self) -> None:
         """Start the GUI application."""

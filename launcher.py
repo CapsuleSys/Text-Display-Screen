@@ -13,6 +13,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox, Scrollbar, Canvas
 from pathlib import Path
 from typing import NamedTuple, Callable
+from logger_setup import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class StreamTool(NamedTuple):
@@ -195,10 +198,10 @@ class StreamToolsLauncher:
                 str(main_app_path)
             ], cwd=str(Path(__file__).parent))
             
-            print("Screen Display launched successfully")
+            logger.info("Screen Display launched successfully")
             
         except Exception as e:
-            print(f"Failed to launch screen display: {e}")
+            logger.error(f"Failed to launch screen display: {e}")
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
@@ -225,10 +228,10 @@ class StreamToolsLauncher:
                 str(settings_gui_path)
             ], cwd=str(Path(__file__).parent))
             
-            print("Screen Display Settings launched successfully")
+            logger.info("Screen Display Settings launched successfully")
             
         except Exception as e:
-            print(f"Failed to launch settings: {e}")
+            logger.error(f"Failed to launch settings: {e}")
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
@@ -255,10 +258,10 @@ class StreamToolsLauncher:
                 str(chat_tools_path)
             ], cwd=str(Path(__file__).parent))
             
-            print("Chat Tools launched successfully")
+            logger.info("Chat Tools launched successfully")
             
         except Exception as e:
-            print(f"Failed to launch chat tools: {e}")
+            logger.error(f"Failed to launch chat tools: {e}")
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
@@ -285,10 +288,10 @@ class StreamToolsLauncher:
                 str(settings_path)
             ], cwd=str(Path(__file__).parent))
             
-            print("Chat Tools Settings launched successfully")
+            logger.info("Chat Tools Settings launched successfully")
             
         except Exception as e:
-            print(f"Failed to launch chat tools settings: {e}")
+            logger.error(f"Failed to launch chat tools settings: {e}")
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
@@ -308,9 +311,9 @@ def main() -> None:
         launcher = StreamToolsLauncher()
         launcher.run()
     except KeyboardInterrupt:
-        print("\nLauncher interrupted by user.")
+        logger.info("Launcher interrupted by user.")
     except Exception as e:
-        print(f"Error starting launcher: {e}")
+        logger.error(f"Error starting launcher: {e}")
 
 
 if __name__ == "__main__":
