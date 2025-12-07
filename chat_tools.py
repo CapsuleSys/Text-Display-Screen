@@ -243,6 +243,20 @@ class ChatTools:
                     """Called before connecting - subscribe to chat messages via EventSub WebSocket"""
                     print(f"[DEBUG] setup_hook called")
                     
+                    # TODO: Implement dual OAuth token support for bot and streamer accounts
+                    # TODO: Currently using single bot account token which limits channel data access
+                    # TODO: Bot token should be used for chat operations (this subscription)
+                    # TODO: Streamer token should be used for channel data queries (subs, predictions, polls, etc.)
+                    # TODO: When dual OAuth implemented:
+                    # TODO:   - Use bot token for ChatMessageSubscription (current behavior)
+                    # TODO:   - Use streamer token for ChannelSubscribeSubscription
+                    # TODO:   - Use streamer token for ChannelPredictionBeginSubscription  
+                    # TODO:   - Use streamer token for ChannelPollBeginSubscription
+                    # TODO:   - Use streamer token for HypeTrainBeginSubscription
+                    # TODO:   - Use streamer token for ChannelPointsRedemptionAddSubscription
+                    # TODO:   - Use streamer token for ChannelCheerSubscription (bits)
+                    # TODO: Bot must be moderator in streamer's channel for moderator:read:followers scope
+                    
                     # Get the channel user to subscribe to their chat
                     channel_name = chat_tools_instance.config['channel']
                     print(f"[DEBUG] Fetching channel info for: {channel_name}")
@@ -265,6 +279,16 @@ class ChatTools:
                                 as_bot=True
                             )
                             print(f"[DEBUG] Successfully subscribed to chat messages")
+                            
+                            # TODO: Add additional EventSub subscriptions when dual OAuth implemented
+                            # TODO: Subscribe to channel.subscribe (requires streamer token)
+                            # TODO: Subscribe to channel.prediction.begin (requires streamer token)
+                            # TODO: Subscribe to channel.poll.begin (requires streamer token)
+                            # TODO: Subscribe to channel.hype_train.begin (requires streamer token)
+                            # TODO: Subscribe to channel.channel_points_custom_reward_redemption.add (requires streamer token)
+                            # TODO: Subscribe to channel.cheer (requires streamer token)
+                            # TODO: Subscribe to channel.follow (requires moderator token, bot must be mod)
+                            
                         else:
                             print(f"[ERROR] Could not find channel: {channel_name}")
                     except Exception as e:

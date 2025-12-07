@@ -385,6 +385,30 @@ class ChatToolsSettings:
             
             # Build OAuth URL
             redirect_uri = f"http://localhost:{port}"
+            # TODO: Implement dual OAuth flow for bot account and streamer account
+            # TODO: Current flow only authenticates bot account, which limits access to streamer's channel data
+            # TODO: Bot account needs these scopes for basic functionality:
+            # TODO:   - user:read:chat (read messages via EventSub)
+            # TODO:   - user:write:chat (send messages to chat)
+            # TODO:   - moderator:read:followers (read followers as moderator)
+            # TODO: Streamer account needs these scopes for full channel data access:
+            # TODO:   - channel:read:subscriptions (read subscriber list and events)
+            # TODO:   - channel:read:predictions (read prediction events)
+            # TODO:   - channel:read:polls (read poll events)
+            # TODO:   - channel:read:hype_train (read hype train events)
+            # TODO:   - channel:read:redemptions (read channel point redemptions)
+            # TODO:   - bits:read (read bits/cheer events)
+            # TODO: Implementation plan for dual OAuth:
+            # TODO:   1. Add separate "Authenticate Bot" and "Authenticate Streamer" buttons in settings
+            # TODO:   2. Store both tokens in config (bot_oauth_token, streamer_oauth_token)
+            # TODO:   3. Use bot token for chat operations (read/write messages)
+            # TODO:   4. Use streamer token for channel data queries (subs, predictions, polls, etc.)
+            # TODO:   5. Add validation to ensure both tokens are present before connecting
+            # TODO:   6. Handle token refresh separately for both accounts
+            # TODO:   7. Display which account is authenticated in settings UI
+            # TODO: For now, using single bot account OAuth with moderator permissions
+            # TODO: Bot must be moderator in streamer's channel for moderator:read:followers to work
+            
             # Comprehensive scopes for chat, stream info, and events
             scopes = (
                 "user:read:chat "
