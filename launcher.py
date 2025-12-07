@@ -37,6 +37,10 @@ class StreamToolsLauncher:
         config_dir = Path(__file__).parent / "config"
         config_dir.mkdir(exist_ok=True)
         
+        # Use venv Python if available
+        venv_python = Path(__file__).parent / ".venv" / "Scripts" / "python.exe"
+        self.python_exe = str(venv_python) if venv_python.exists() else sys.executable
+        
         # Define available tools
         self.tools = [
             StreamTool(
@@ -187,7 +191,7 @@ class StreamToolsLauncher:
         try:
             # Launch main display application
             subprocess.Popen([
-                sys.executable,
+                self.python_exe,
                 str(main_app_path)
             ], cwd=str(Path(__file__).parent))
             
@@ -217,7 +221,7 @@ class StreamToolsLauncher:
         try:
             # Launch settings GUI
             subprocess.Popen([
-                sys.executable,
+                self.python_exe,
                 str(settings_gui_path)
             ], cwd=str(Path(__file__).parent))
             
@@ -247,7 +251,7 @@ class StreamToolsLauncher:
         try:
             # Launch chat tools application
             subprocess.Popen([
-                sys.executable,
+                self.python_exe,
                 str(chat_tools_path)
             ], cwd=str(Path(__file__).parent))
             
@@ -277,7 +281,7 @@ class StreamToolsLauncher:
         try:
             # Launch chat tools settings
             subprocess.Popen([
-                sys.executable,
+                self.python_exe,
                 str(settings_path)
             ], cwd=str(Path(__file__).parent))
             

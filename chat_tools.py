@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+import asyncio
+import threading
 
 
 class ChatTools:
@@ -28,8 +30,10 @@ class ChatTools:
         self.config: Optional[dict] = None
         self.is_connected: bool = False
         
-        # TODO: Add twitchio bot instance variable
-        # self.bot: Optional[TwitchBot] = None
+        # Bot instance
+        self.bot: Optional[any] = None
+        self.bot_thread: Optional[threading.Thread] = None
+        self.event_loop: Optional[asyncio.AbstractEventLoop] = None
         
         self._create_ui()
         self._load_config()
@@ -137,14 +141,34 @@ class ChatTools:
         
         Args:
             message: The message to log
-            level: Log level (INFO, WARNING, ERROR, CHAT, etc.)
+            level: Log level (INFO, WARNING, ERROR, CHAT, SUCCESS, etc.)
         """
         timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        # Color coding based on level
+        level_colors = {
+            "ERROR": "red",
+            "WARNING": "orange",
+            "SUCCESS": "green",
+            "CHAT": "black",
+            "INFO": "blue"
+        }
+        color = level_colors.get(level, "black")
+        
         formatted_message = f"[{timestamp}] [{level}] {message}\n"
         
-        # Enable text widget, insert message, disable again
+        # Enable text widget, insert message with color, disable again
         self.log_text.config(state=tk.NORMAL)
+        
+        # Insert with tag for coloring
+        start_pos = self.log_text.index(tk.END)
         self.log_text.insert(tk.END, formatted_message)
+        end_pos = self.log_text.index(tk.END)
+        
+        # Apply color tag to the line
+        self.log_text.tag_add(level, start_pos, end_pos)
+        self.log_text.tag_config(level, foreground=color)
+        
         self.log_text.see(tk.END)  # Auto-scroll to bottom
         self.log_text.config(state=tk.DISABLED)
     
@@ -164,12 +188,6 @@ class ChatTools:
     
     def connect_to_twitch(self) -> None:
         """Connect to Twitch IRC using configured credentials."""
-        # TODO: Implement Twitch IRC connection using twitchio
-        # TODO: Create bot instance with credentials from config
-        # TODO: Start bot in separate thread/async task
-        # TODO: Register event handlers for messages
-        # TODO: Update connection status on success/failure
-        
         if not self.config:
             messagebox.showerror(
                 "Configuration Missing",
@@ -178,31 +196,193 @@ class ChatTools:
             self.open_settings()
             return
         
-        # Placeholder for actual connection
+        # Validate config has all required fields
+        required_fields = ['username', 'oauth_token', 'client_id', 'client_secret', 'bot_id', 'channel']
+        missing = [f for f in required_fields if not self.config.get(f)]
+        if missing:
+            messagebox.showerror(
+                "Incomplete Configuration",
+                f"Missing configuration fields: {', '.join(missing)}\n\n"
+                "Please complete settings."
+            )
+            self.open_settings()
+            return
+        
         self.log_message("Attempting to connect to Twitch...", "INFO")
         
-        # Simulate connection (remove when implementing real connection)
-        messagebox.showinfo(
-            "Connection",
-            "Twitch connection not yet implemented.\n\n"
-            "This will connect to Twitch IRC using twitchio library."
-        )
-        
-        # TODO: Remove simulation below when implementing real connection
-        # self.is_connected = True
-        # self._update_connection_status()
-        # self.log_message(f"Connected to #{self.config['channel']}", "SUCCESS")
+        # Start bot in separate thread
+        self.bot_thread = threading.Thread(target=self._run_bot_thread)
+        self.bot_thread.daemon = True
+        self.bot_thread.start()
+    
+    def _run_bot_thread(self) -> None:
+        """Thread worker for running Twitch bot."""
+        try:
+            from twitchio.ext import commands
+            from twitchio import eventsub, ChatMessage
+            
+            # Create new event loop for this thread
+            self.event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.event_loop)
+            
+            # Create bot instance
+            chat_tools_instance = self
+            
+            class TwitchChatBot(commands.Bot):
+                def __init__(self):
+                    super().__init__(
+                        client_id=chat_tools_instance.config['client_id'],
+                        client_secret=chat_tools_instance.config['client_secret'],
+                        bot_id=chat_tools_instance.config['bot_id'],
+                        prefix='!'
+                    )
+                    self.oauth_token = chat_tools_instance.config['oauth_token']
+                    print(f"[DEBUG] Bot initialized for channel: {chat_tools_instance.config['channel']}")
+                
+                async def setup_hook(self):
+                    """Called before connecting - subscribe to chat messages via EventSub WebSocket"""
+                    print(f"[DEBUG] setup_hook called")
+                    
+                    # Get the channel user to subscribe to their chat
+                    channel_name = chat_tools_instance.config['channel']
+                    print(f"[DEBUG] Fetching channel info for: {channel_name}")
+                    
+                    try:
+                        users = await self.fetch_users(logins=[channel_name])
+                        if users:
+                            broadcaster = users[0]
+                            print(f"[DEBUG] Found broadcaster: {broadcaster.name} (ID: {broadcaster.id})")
+                            
+                            # Create subscription payload for chat messages
+                            payload = eventsub.ChatMessageSubscription(
+                                broadcaster_user_id=broadcaster.id,
+                                user_id=chat_tools_instance.config['bot_id']
+                            )
+                            
+                            # Subscribe to channel.chat.message events via WebSocket
+                            await self.subscribe_websocket(
+                                payload=payload,
+                                as_bot=True
+                            )
+                            print(f"[DEBUG] Successfully subscribed to chat messages")
+                        else:
+                            print(f"[ERROR] Could not find channel: {channel_name}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to subscribe to chat: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                async def event_ready(self):
+                    print(f"[INFO] Bot ready event triggered")
+                    chat_tools_instance.is_connected = True
+                    chat_tools_instance.root.after(0, chat_tools_instance._update_connection_status)
+                    chat_tools_instance.root.after(
+                        0,
+                        lambda: chat_tools_instance.log_message(
+                            f"Connected to Twitch, monitoring #{chat_tools_instance.config['channel']}",
+                            "SUCCESS"
+                        )
+                    )
+                    print(f"[INFO] Bot ready and subscribed to channel")
+                
+                async def event_message(self, message: ChatMessage):
+                    """Handle incoming chat messages from EventSub"""
+                    print(f"[DEBUG] Message event received!")
+                    print(f"[DEBUG] Message type: {type(message)}")
+                    
+                    try:
+                        # ChatMessage has .chatter (Chatter object) and .text
+                        username = message.chatter.name
+                        content = message.text
+                        print(f"[DEBUG] Chat: {username}: {content}")
+                        
+                        # Log to UI
+                        chat_tools_instance.root.after(
+                            0,
+                            lambda u=username, c=content: chat_tools_instance.log_message(
+                                f"{u}: {c}",
+                                "CHAT"
+                            )
+                        )
+                    except Exception as e:
+                        print(f"[ERROR] Failed to process message: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                async def event_error(self, payload):
+                    """Handle errors from twitchio"""
+                    if hasattr(payload, 'error'):
+                        actual_error = payload.error
+                        print(f"[ERROR] Actual error: {actual_error}")
+                        error_msg = str(actual_error)
+                    else:
+                        error_msg = str(payload)
+                        print(f"[ERROR] Bot error: {payload}")
+                    
+                    if hasattr(payload, 'listener'):
+                        print(f"[ERROR] Failed listener: {payload.listener}")
+                    
+                    chat_tools_instance.root.after(
+                        0,
+                        lambda e=error_msg: chat_tools_instance.log_message(
+                            f"Bot error: {e}",
+                            "ERROR"
+                        )
+                    )
+            
+            # Store bot instance and run it
+            self.bot = TwitchChatBot()
+            self.log_message(f"Bot created, connecting to Twitch...", "INFO")
+            
+            # Run bot with the OAuth token
+            self.event_loop.run_until_complete(
+                self.bot.start(token=self.config['oauth_token'])
+            )
+            
+        except ImportError:
+            self.root.after(
+                0,
+                lambda: self.log_message(
+                    "twitchio library not installed. Install with: pip install twitchio",
+                    "ERROR"
+                )
+            )
+            self.is_connected = False
+            self.root.after(0, self._update_connection_status)
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.root.after(
+                0,
+                lambda msg=error_msg: self.log_message(
+                    f"Connection failed: {msg}",
+                    "ERROR"
+                )
+            )
+            self.is_connected = False
+            self.root.after(0, self._update_connection_status)
+            
+            import traceback
+            traceback.print_exc()
     
     def disconnect_from_twitch(self) -> None:
         """Disconnect from Twitch IRC."""
-        # TODO: Stop bot instance
-        # TODO: Close IRC connection
-        # TODO: Clean up async tasks
-        # TODO: Update connection status
-        
         self.log_message("Disconnecting from Twitch...", "INFO")
         
+        if self.bot and self.event_loop:
+            try:
+                # Stop the bot
+                future = asyncio.run_coroutine_threadsafe(
+                    self.bot.close(),
+                    self.event_loop
+                )
+                future.result(timeout=5.0)
+            except Exception as e:
+                self.log_message(f"Error during disconnect: {e}", "WARNING")
+        
         self.is_connected = False
+        self.bot = None
+        self.event_loop = None
         self._update_connection_status()
         self.log_message("Disconnected from Twitch", "INFO")
     
@@ -229,9 +409,6 @@ class ChatTools:
     
     def open_settings(self) -> None:
         """Open the chat tools settings window."""
-        # TODO: Launch settings GUI
-        # TODO: Reload config after settings window closes
-        
         import subprocess
         import sys
         
@@ -244,6 +421,9 @@ class ChatTools:
             ], cwd=str(Path(__file__).parent))
             
             self.log_message("Settings window opened", "INFO")
+            
+            # Reload config after a delay (user might save new settings)
+            self.root.after(1000, self._load_config)
             
         except Exception as e:
             self.log_message(f"Failed to open settings: {e}", "ERROR")
