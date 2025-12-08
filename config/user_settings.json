@@ -42,7 +42,7 @@
     "ghost_spawn_chance": 0.05,
     "flicker_chance": 0.0,
     "flicker_intensity": 0.2,
-    "colour_scheme": "classic",
+    "colour_scheme": "ocean",
     "colour_transition_mode": "smooth",
     "colour_shift_speed": 0.005,
     "snap_duration": 120,

@@ -16,6 +16,9 @@ import webbrowser
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# Import tab classes
+from chat_tools_settings_tabs import ConnectionTab, CommandsTab, AutoMessagesTab
+
 
 def create_link_label(parent: tk.Frame, text: str, url: str, row: int, column: int, **grid_kwargs) -> tk.Label:
     """Create a clickable link label."""
@@ -76,10 +79,28 @@ class ChatToolsSettings:
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
-        # Create tabs
-        self._create_connection_tab()
-        self._create_commands_tab()
-        self._create_auto_messages_tab()
+        # Create tabs using tab classes
+        self.connection_tab = ConnectionTab(
+            self.notebook,
+            start_oauth_callback=self.start_oauth_flow,
+            test_connection_callback=self.test_connection
+        )
+        
+        self.commands_tab = CommandsTab(
+            self.notebook,
+            on_command_selected_callback=self._on_command_selected,
+            add_command_callback=self._add_command,
+            remove_command_callback=self._remove_command,
+            save_command_callback=self._save_current_command
+        )
+        
+        self.auto_messages_tab = AutoMessagesTab(
+            self.notebook,
+            on_message_selected_callback=self._on_message_selected,
+            add_message_callback=self._add_auto_message,
+            remove_message_callback=self._remove_auto_message,
+            save_message_callback=self._save_current_message
+        )
         
         # Bottom button frame (applies to all tabs)
         button_frame = tk.Frame(self.root, pady=10)
@@ -107,712 +128,9 @@ class ChatToolsSettings:
         )
         close_btn.pack(side=tk.LEFT, padx=10)
     
-    def _create_connection_tab(self) -> None:
-        """Create the connection settings tab.
-        
-        This tab handles Twitch bot authentication and connection configuration.
-        Users must provide OAuth credentials to enable chat bot functionality.
-        
-        Fields:
-        - Bot Username: Twitch username of the bot account
-        - Channel: Twitch channel to monitor (without # prefix)
-        - Client ID: Twitch application client ID from dev console
-        - Client Secret: Twitch application client secret (optional for some flows)
-        - Bot ID: Numeric user ID of bot account (required for API calls)
-        - OAuth Token: Access token obtained via OAuth flow (readonly field)
-        
-        OAuth Flow Button:
-        - Opens browser to Twitch OAuth authorization
-        - Runs local HTTP server to capture callback
-        - Automatically populates OAuth Token field when complete
-        - See _oauth_flow_thread() for implementation details
-        
-        Validation:
-        - Bot ID must be numeric
-        - Client ID/Secret must match Twitch app configuration
-        - OAuth token must have required scopes for bot functionality
-        
-        Help Links:
-        - Clickable labels provide direct links to Twitch developer resources
-        - Guide users through app creation and credential retrieval
-        """
-        conn_tab = tk.Frame(self.notebook, padx=40, pady=20)
-        self.notebook.add(conn_tab, text="Connection")
-        
-        # Main form frame
-        form_frame = tk.Frame(conn_tab)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Username field
-        tk.Label(
-            form_frame,
-            text="Twitch Username:",
-            font=("Arial", 11)
-        ).grid(row=0, column=0, sticky="w", pady=10)
-        
-        self.username_entry = tk.Entry(form_frame, width=30, font=("Arial", 11))
-        self.username_entry.grid(row=0, column=1, pady=10, padx=10)
-        
-        # Client ID field (needed first for OAuth)
-        tk.Label(
-            form_frame,
-            text="Client ID:",
-            font=("Arial", 11)
-        ).grid(row=1, column=0, sticky="w", pady=10)
-        
-        self.client_id_entry = tk.Entry(form_frame, width=30, font=("Arial", 11))
-        self.client_id_entry.grid(row=1, column=1, pady=10, padx=10)
-        
-        # Client Secret field
-        tk.Label(
-            form_frame,
-            text="Client Secret:",
-            font=("Arial", 11)
-        ).grid(row=2, column=0, sticky="w", pady=10)
-        
-        self.client_secret_entry = tk.Entry(
-            form_frame,
-            width=30,
-            font=("Arial", 11),
-            show="*"
-        )
-        self.client_secret_entry.grid(row=2, column=1, pady=10, padx=10)
-        
-        # Help text for app credentials (clickable link)
-        create_link_label(
-            form_frame,
-            "Register app at: https://dev.twitch.tv/console/apps",
-            "https://dev.twitch.tv/console/apps",
-            row=3,
-            column=1,
-            sticky="w",
-            padx=10
-        )
-        
-        # OAuth authorize button
-        oauth_btn = tk.Button(
-            form_frame,
-            text="🔑 Authorize with Twitch",
-            command=self.start_oauth_flow,
-            font=("Arial", 10, "bold"),
-            bg="#9146FF",
-            fg="white",
-            width=28
-        )
-        oauth_btn.grid(row=4, column=1, pady=15, padx=10)
-        
-        # OAuth token field (read-only, populated by OAuth)
-        tk.Label(
-            form_frame,
-            text="OAuth Token:",
-            font=("Arial", 11)
-        ).grid(row=5, column=0, sticky="w", pady=10)
-        
-        self.oauth_entry = tk.Entry(
-            form_frame,
-            width=30,
-            font=("Arial", 11),
-            show="*",
-            state="readonly"
-        )
-        self.oauth_entry.grid(row=5, column=1, pady=10, padx=10)
-        
-        # Help text for OAuth
-        oauth_help = tk.Label(
-            form_frame,
-            text="Use 'Authorize with Twitch' button above",
-            font=("Arial", 8),
-            fg="grey"
-        )
-        oauth_help.grid(row=6, column=1, sticky="w", padx=10)
-        
-        # Bot ID field
-        tk.Label(
-            form_frame,
-            text="Bot ID:",
-            font=("Arial", 11)
-        ).grid(row=7, column=0, sticky="w", pady=10)
-        
-        self.bot_id_entry = tk.Entry(form_frame, width=30, font=("Arial", 11))
-        self.bot_id_entry.grid(row=7, column=1, pady=10, padx=10)
-        
-        # Bot ID help text (clickable link)
-        create_link_label(
-            form_frame,
-            "Get Bot ID: streamweasels.com/tools/convert-twitch-username-to-user-id",
-            "https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/",
-            row=8,
-            column=1,
-            sticky="w",
-            padx=10,
-            pady=(0, 10)
-        )
-        
-        # Channel field
-        tk.Label(
-            form_frame,
-            text="Channel to Join:",
-            font=("Arial", 11)
-        ).grid(row=9, column=0, sticky="w", pady=10)
-        
-        self.channel_entry = tk.Entry(form_frame, width=30, font=("Arial", 11))
-        self.channel_entry.grid(row=9, column=1, pady=10, padx=10)
-        
-        # Channel help text
-        channel_help = tk.Label(
-            form_frame,
-            text="Enter channel name without #",
-            font=("Arial", 8),
-            fg="grey"
-        )
-        channel_help.grid(row=10, column=1, sticky="w", padx=10)
-        
-        # Tab-specific buttons
-        tab_button_frame = tk.Frame(conn_tab, pady=15)
-        tab_button_frame.pack()
-        
-        # Test connection button
-        test_btn = tk.Button(
-            tab_button_frame,
-            text="Test Connection",
-            command=self.test_connection,
-            width=15,
-            font=("Arial", 10),
-            bg="#FFA500",
-            fg="white"
-        )
-        test_btn.pack(side=tk.LEFT, padx=10)
-    
-    def _create_commands_tab(self) -> None:
-        """Create the chat commands configuration tab.
-        
-        Dual-pane layout with command list and editor for creating/modifying
-        custom chat commands. Commands are triggered when users type them in chat.
-        
-        Layout:
-        - Left pane: Listbox showing all configured commands
-        - Right pane: Editor for selected command with add/remove buttons
-        
-        Command Configuration:
-        - Trigger: Command text (must start with !, alphanumeric only)
-        - Response: Message bot sends when command is triggered
-        - Enabled: Toggle to temporarily disable command without deleting
-        - Permission Level: Who can use command (everyone, subscriber, moderator, broadcaster)
-        - Cooldown: Minimum seconds between command uses (prevents spam)
-        
-        Workflow:
-        1. Click "Add Command" to create new entry
-        2. Fill in trigger (e.g., "!discord") and response
-        3. Set permission level and cooldown
-        4. Click "Save Command" to commit changes
-        5. Select from list to edit existing commands
-        6. Click "Remove Command" to delete
-        
-        Validation:
-        - Trigger must start with ! and contain only alphanumeric characters
-        - Duplicate triggers are prevented
-        - Response cannot be empty
-        
-        TODO (line 288):
-        - Implement response variables: {username}, {time}, {uptime}
-        - Allow personalized responses with dynamic content
-        """
-        # TODO: Implement command response variables ({username}, {time}, {uptime})
-        
-        cmd_tab = tk.Frame(self.notebook)
-        self.notebook.add(cmd_tab, text="Commands")
-        
-        # Main container with dual pane layout
-        main_container = tk.Frame(cmd_tab, padx=10, pady=10)
-        main_container.pack(fill=tk.BOTH, expand=True)
-        
-        # Left pane - commands list
-        left_pane = tk.Frame(main_container)
-        left_pane.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 10))
-        
-        tk.Label(
-            left_pane,
-            text="Commands",
-            font=("Arial", 11, "bold")
-        ).pack(anchor="w", pady=(0, 5))
-        
-        # Commands listbox with scrollbar
-        list_frame = tk.Frame(left_pane)
-        list_frame.pack(fill=tk.BOTH, expand=True)
-        
-        scrollbar = tk.Scrollbar(list_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.commands_listbox = tk.Listbox(
-            list_frame,
-            width=25,
-            height=20,
-            font=("Arial", 10),
-            yscrollcommand=scrollbar.set
-        )
-        self.commands_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.commands_listbox.yview)
-        
-        self.commands_listbox.bind("<<ListboxSelect>>", self._on_command_selected)
-        
-        # List control buttons
-        list_btn_frame = tk.Frame(left_pane)
-        list_btn_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        tk.Button(
-            list_btn_frame,
-            text="Add Command",
-            command=self._add_command,
-            font=("Arial", 9),
-            bg="#4CAF50",
-            fg="white"
-        ).pack(fill=tk.X, pady=(0, 5))
-        
-        tk.Button(
-            list_btn_frame,
-            text="Remove Selected",
-            command=self._remove_command,
-            font=("Arial", 9),
-            bg="#F44336",
-            fg="white"
-        ).pack(fill=tk.X)
-        
-        # Right pane - command editor
-        right_pane = tk.Frame(main_container)
-        right_pane.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        
-        tk.Label(
-            right_pane,
-            text="Command Editor",
-            font=("Arial", 11, "bold")
-        ).pack(anchor="w", pady=(0, 10))
-        
-        # Command name
-        tk.Label(
-            right_pane,
-            text="Command Name:",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 2))
-        
-        self.cmd_name_entry = tk.Entry(
-            right_pane,
-            font=("Arial", 10),
-            width=40
-        )
-        self.cmd_name_entry.pack(fill=tk.X, pady=(0, 10))
-        
-        # Triggers
-        tk.Label(
-            right_pane,
-            text="Triggers (space-separated, e.g., !discord !dc !server):",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 2))
-        
-        self.cmd_triggers_entry = tk.Entry(
-            right_pane,
-            font=("Arial", 10),
-            width=40
-        )
-        self.cmd_triggers_entry.pack(fill=tk.X, pady=(0, 10))
-        
-        # Response
-        tk.Label(
-            right_pane,
-            text="Response:",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 2))
-        
-        self.cmd_response_text = scrolledtext.ScrolledText(
-            right_pane,
-            font=("Arial", 10),
-            height=6,
-            wrap=tk.WORD
-        )
-        self.cmd_response_text.pack(fill=tk.X, pady=(0, 10))
-        
-        # Permission level
-        tk.Label(
-            right_pane,
-            text="Permission Level:",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 2))
-        
-        self.cmd_permission_var = tk.StringVar(value="everyone")
-        
-        perm_frame = tk.Frame(right_pane)
-        perm_frame.pack(anchor="w", pady=(0, 10))
-        
-        tk.Radiobutton(
-            perm_frame,
-            text="Streamer Only",
-            variable=self.cmd_permission_var,
-            value="streamer",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT, padx=(0, 15))
-        
-        tk.Radiobutton(
-            perm_frame,
-            text="Mods Only",
-            variable=self.cmd_permission_var,
-            value="mods",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT, padx=(0, 15))
-        
-        tk.Radiobutton(
-            perm_frame,
-            text="Everyone",
-            variable=self.cmd_permission_var,
-            value="everyone",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT)
-        
-        # Cooldown
-        cooldown_frame = tk.Frame(right_pane)
-        cooldown_frame.pack(anchor="w", pady=(5, 10))
-        
-        tk.Label(
-            cooldown_frame,
-            text="Cooldown (seconds):",
-            font=("Arial", 10)
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.cmd_cooldown_var = tk.IntVar(value=30)
-        
-        tk.Spinbox(
-            cooldown_frame,
-            from_=0,
-            to=3600,
-            textvariable=self.cmd_cooldown_var,
-            font=("Arial", 10),
-            width=10
-        ).pack(side=tk.LEFT)
-        
-        # Enabled checkbox
-        self.cmd_enabled_var = tk.BooleanVar(value=True)
-        
-        tk.Checkbutton(
-            right_pane,
-            text="Enabled",
-            variable=self.cmd_enabled_var,
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 15))
-        
-        # Save command button
-        tk.Button(
-            right_pane,
-            text="Save Command",
-            command=self._save_current_command,
-            font=("Arial", 10, "bold"),
-            bg="#2196F3",
-            fg="white",
-            width=20
-        ).pack(anchor="w")
-    
-    def _create_auto_messages_tab(self) -> None:
-        """Create the auto messages configuration tab.
-        
-        Configure messages that the bot automatically posts at intervals.
-        Useful for promoting social media, rules reminders, or announcements.
-        
-        Layout:
-        - Top: Global auto-message settings
-        - Left pane: Listbox showing all configured messages
-        - Right pane: Editor for selected message
-        
-        Global Settings:
-        - Enable Auto Messages: Master toggle for entire system
-        - Selection Mode: Random (shuffle) or Sequential (ordered)
-        - Base Interval: Seconds between auto-messages (applies to all)
-        
-        Activity Threshold:
-        - Min Messages in Window: Required chat activity before posting
-        - Time Window: Period to count messages (in minutes)
-        - Prevents auto-messages when chat is dead/inactive
-        
-        Per-Message Configuration:
-        - Message Text: Content to post
-        - Enabled: Toggle individual message without deleting
-        - Interval Multiplier: Scale base interval for this message (1.0 = normal)
-        
-        Selection Modes:
-        - Random: Picks messages randomly (no repeats until all shown)
-        - Sequential: Posts in order from top to bottom, then repeats
-        
-        Workflow:
-        1. Enable auto-messages globally
-        2. Set base interval and activity threshold
-        3. Add messages with "Add Message" button
-        4. Configure each message's text and interval multiplier
-        5. Bot posts messages automatically when connected
-        
-        Relationship to Global Enable:
-        - Global toggle overrides all per-message enables
-        - Per-message enables allow selective activation when global is on
-        - Both must be enabled for a message to post
-        
-        TODO (lines 481-483):
-        - Variable substitution in auto messages
-        - Schedule-based messages (time of day restrictions)
-        - Viewer count thresholds for auto-messages
-        """
-        # TODO: Add variable substitution in auto messages
-        # TODO: Add schedule-based messages (time of day restrictions)
-        # TODO: Add viewer count thresholds
-        
-        msg_tab = tk.Frame(self.notebook)
-        self.notebook.add(msg_tab, text="Auto Messages")
-        
-        # Main container with dual pane layout
-        main_container = tk.Frame(msg_tab, padx=10, pady=10)
-        main_container.pack(fill=tk.BOTH, expand=True)
-        
-        # Left pane - messages list
-        left_pane = tk.Frame(main_container)
-        left_pane.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 10))
-        
-        tk.Label(
-            left_pane,
-            text="Auto Messages",
-            font=("Arial", 11, "bold")
-        ).pack(anchor="w", pady=(0, 5))
-        
-        # Messages listbox with scrollbar
-        list_frame = tk.Frame(left_pane)
-        list_frame.pack(fill=tk.BOTH, expand=True)
-        
-        scrollbar = tk.Scrollbar(list_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.messages_listbox = tk.Listbox(
-            list_frame,
-            width=25,
-            height=12,
-            font=("Arial", 10),
-            yscrollcommand=scrollbar.set
-        )
-        self.messages_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.messages_listbox.yview)
-        
-        self.messages_listbox.bind("<<ListboxSelect>>", self._on_message_selected)
-        
-        # List control buttons
-        list_btn_frame = tk.Frame(left_pane)
-        list_btn_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        tk.Button(
-            list_btn_frame,
-            text="Add Message",
-            command=self._add_auto_message,
-            font=("Arial", 9),
-            bg="#4CAF50",
-            fg="white"
-        ).pack(fill=tk.X, pady=(0, 5))
-        
-        tk.Button(
-            list_btn_frame,
-            text="Remove Selected",
-            command=self._remove_auto_message,
-            font=("Arial", 9),
-            bg="#F44336",
-            fg="white"
-        ).pack(fill=tk.X)
-        
-        # Right pane - message editor + global settings
-        right_pane = tk.Frame(main_container)
-        right_pane.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        
-        # Global settings section
-        global_frame = tk.LabelFrame(
-            right_pane,
-            text="Global Settings",
-            font=("Arial", 11, "bold"),
-            padx=15,
-            pady=10
-        )
-        global_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        # Master enable
-        self.auto_msg_master_enabled_var = tk.BooleanVar(value=True)
-        
-        tk.Checkbutton(
-            global_frame,
-            text="Enable Auto Messages",
-            variable=self.auto_msg_master_enabled_var,
-            font=("Arial", 10, "bold")
-        ).pack(anchor="w", pady=(0, 10))
-        
-        # Post interval
-        interval_frame = tk.Frame(global_frame)
-        interval_frame.pack(anchor="w", pady=(0, 10))
-        
-        tk.Label(
-            interval_frame,
-            text="Post Interval:",
-            font=("Arial", 10)
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.auto_msg_interval_var = tk.IntVar(value=20)
-        
-        tk.Spinbox(
-            interval_frame,
-            from_=1,
-            to=180,
-            textvariable=self.auto_msg_interval_var,
-            font=("Arial", 10),
-            width=8
-        ).pack(side=tk.LEFT, padx=(0, 5))
-        
-        tk.Label(
-            interval_frame,
-            text="minutes",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT)
-        
-        tk.Label(
-            global_frame,
-            text="(How often to post an auto-message)",
-            font=("Arial", 8),
-            fg="grey"
-        ).pack(anchor="w", pady=(0, 10))
-        
-        # Activity threshold
-        activity_frame = tk.Frame(global_frame)
-        activity_frame.pack(anchor="w", pady=(0, 5))
-        
-        tk.Label(
-            activity_frame,
-            text="Minimum Chat Activity:",
-            font=("Arial", 10)
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.auto_msg_min_activity_var = tk.IntVar(value=5)
-        
-        tk.Spinbox(
-            activity_frame,
-            from_=0,
-            to=100,
-            textvariable=self.auto_msg_min_activity_var,
-            font=("Arial", 10),
-            width=8
-        ).pack(side=tk.LEFT, padx=(0, 5))
-        
-        tk.Label(
-            activity_frame,
-            text="messages",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT)
-        
-        # Activity window
-        window_frame = tk.Frame(global_frame)
-        window_frame.pack(anchor="w", pady=(0, 5))
-        
-        tk.Label(
-            window_frame,
-            text="Activity Window:",
-            font=("Arial", 10)
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.auto_msg_activity_window_var = tk.IntVar(value=5)
-        
-        tk.Spinbox(
-            window_frame,
-            from_=1,
-            to=60,
-            textvariable=self.auto_msg_activity_window_var,
-            font=("Arial", 10),
-            width=8
-        ).pack(side=tk.LEFT, padx=(0, 5))
-        
-        tk.Label(
-            window_frame,
-            text="minutes",
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT)
-        
-        tk.Label(
-            global_frame,
-            text="(Skip auto-message if fewer than X messages in last Y minutes)",
-            font=("Arial", 8),
-            fg="grey"
-        ).pack(anchor="w", pady=(0, 10))
-        
-        # Selection mode
-        tk.Label(
-            global_frame,
-            text="Selection Mode:",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 2))
-        
-        self.auto_msg_random_var = tk.BooleanVar(value=True)
-        
-        mode_frame = tk.Frame(global_frame)
-        mode_frame.pack(anchor="w", pady=(0, 5))
-        
-        tk.Radiobutton(
-            mode_frame,
-            text="Random",
-            variable=self.auto_msg_random_var,
-            value=True,
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT, padx=(0, 15))
-        
-        tk.Radiobutton(
-            mode_frame,
-            text="Sequential",
-            variable=self.auto_msg_random_var,
-            value=False,
-            font=("Arial", 9)
-        ).pack(side=tk.LEFT)
-        
-        # Message editor section
-        editor_frame = tk.LabelFrame(
-            right_pane,
-            text="Message Editor",
-            font=("Arial", 11, "bold"),
-            padx=15,
-            pady=10
-        )
-        editor_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Message text
-        tk.Label(
-            editor_frame,
-            text="Message Text:",
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(0, 2))
-        
-        self.msg_text = scrolledtext.ScrolledText(
-            editor_frame,
-            font=("Arial", 10),
-            height=6,
-            wrap=tk.WORD
-        )
-        self.msg_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
-        # Enabled checkbox
-        self.msg_enabled_var = tk.BooleanVar(value=True)
-        
-        tk.Checkbutton(
-            editor_frame,
-            text="Enabled",
-            variable=self.msg_enabled_var,
-            font=("Arial", 10)
-        ).pack(anchor="w", pady=(5, 15))
-        
-        # Save message button
-        tk.Button(
-            editor_frame,
-            text="Save Message",
-            command=self._save_current_message,
-            font=("Arial", 10, "bold"),
-            bg="#2196F3",
-            fg="white",
-            width=20
-        ).pack(anchor="w")
-    
     def _on_command_selected(self, event: Any) -> None:
         """Handle command selection in listbox."""
-        selection = self.commands_listbox.curselection()
+        selection = self.commands_tab.commands_listbox.curselection()
         if not selection:
             return
         
@@ -820,22 +138,22 @@ class ChatToolsSettings:
         command = self.commands_list[self.selected_command_index]
         
         # Populate editor fields
-        self.cmd_name_entry.delete(0, tk.END)
-        self.cmd_name_entry.insert(0, command.get("name", ""))
+        self.commands_tab.cmd_name_entry.delete(0, tk.END)
+        self.commands_tab.cmd_name_entry.insert(0, command.get("name", ""))
         
-        self.cmd_triggers_entry.delete(0, tk.END)
-        self.cmd_triggers_entry.insert(0, " ".join(command.get("triggers", [])))
+        self.commands_tab.cmd_triggers_entry.delete(0, tk.END)
+        self.commands_tab.cmd_triggers_entry.insert(0, " ".join(command.get("triggers", [])))
         
-        self.cmd_response_text.delete("1.0", tk.END)
-        self.cmd_response_text.insert("1.0", command.get("response", ""))
+        self.commands_tab.cmd_response_text.delete("1.0", tk.END)
+        self.commands_tab.cmd_response_text.insert("1.0", command.get("response", ""))
         
-        self.cmd_permission_var.set(command.get("permission", "everyone"))
-        self.cmd_cooldown_var.set(command.get("cooldown", 30))
-        self.cmd_enabled_var.set(command.get("enabled", True))
+        self.commands_tab.cmd_permission_var.set(command.get("permission", "everyone"))
+        self.commands_tab.cmd_cooldown_var.set(command.get("cooldown", 30))
+        self.commands_tab.cmd_enabled_var.set(command.get("enabled", True))
     
     def _on_message_selected(self, event: Any) -> None:
         """Handle auto message selection in listbox."""
-        selection = self.messages_listbox.curselection()
+        selection = self.auto_messages_tab.messages_listbox.curselection()
         if not selection:
             return
         
@@ -843,10 +161,10 @@ class ChatToolsSettings:
         message = self.auto_messages_list[self.selected_message_index]
         
         # Populate editor fields
-        self.msg_text.delete("1.0", tk.END)
-        self.msg_text.insert("1.0", message.get("text", ""))
+        self.auto_messages_tab.msg_text.delete("1.0", tk.END)
+        self.auto_messages_tab.msg_text.insert("1.0", message.get("text", ""))
         
-        self.msg_enabled_var.set(message.get("enabled", True))
+        self.auto_messages_tab.msg_enabled_var.set(message.get("enabled", True))
     
     def _add_command(self) -> None:
         """Add a new blank command."""
@@ -863,9 +181,9 @@ class ChatToolsSettings:
         self._refresh_commands_list()
         
         # Select the new command
-        self.commands_listbox.selection_clear(0, tk.END)
-        self.commands_listbox.selection_set(tk.END)
-        self.commands_listbox.see(tk.END)
+        self.commands_tab.commands_listbox.selection_clear(0, tk.END)
+        self.commands_tab.commands_listbox.selection_set(tk.END)
+        self.commands_tab.commands_listbox.see(tk.END)
         self._on_command_selected(None)
     
     def _remove_command(self) -> None:
@@ -899,9 +217,9 @@ class ChatToolsSettings:
         self._refresh_messages_list()
         
         # Select the new message
-        self.messages_listbox.selection_clear(0, tk.END)
-        self.messages_listbox.selection_set(tk.END)
-        self.messages_listbox.see(tk.END)
+        self.auto_messages_tab.messages_listbox.selection_clear(0, tk.END)
+        self.auto_messages_tab.messages_listbox.selection_set(tk.END)
+        self.auto_messages_tab.messages_listbox.see(tk.END)
         self._on_message_selected(None)
     
     def _remove_auto_message(self) -> None:
@@ -928,12 +246,12 @@ class ChatToolsSettings:
     def _save_current_command(self) -> None:
         """Save the current command from editor."""
         # Get values from editor
-        name = self.cmd_name_entry.get().strip()
-        triggers_text = self.cmd_triggers_entry.get().strip()
-        response = self.cmd_response_text.get("1.0", tk.END).strip()
-        permission = self.cmd_permission_var.get()
-        cooldown = self.cmd_cooldown_var.get()
-        enabled = self.cmd_enabled_var.get()
+        name = self.commands_tab.cmd_name_entry.get().strip()
+        triggers_text = self.commands_tab.cmd_triggers_entry.get().strip()
+        response = self.commands_tab.cmd_response_text.get("1.0", tk.END).strip()
+        permission = self.commands_tab.cmd_permission_var.get()
+        cooldown = self.commands_tab.cmd_cooldown_var.get()
+        enabled = self.commands_tab.cmd_enabled_var.get()
         
         # Validate
         if not name:
@@ -997,8 +315,8 @@ class ChatToolsSettings:
     
     def _save_current_message(self) -> None:
         """Save the current auto message from editor."""
-        text = self.msg_text.get("1.0", tk.END).strip()
-        enabled = self.msg_enabled_var.get()
+        text = self.auto_messages_tab.msg_text.get("1.0", tk.END).strip()
+        enabled = self.auto_messages_tab.msg_enabled_var.get()
         
         # Validate
         if not text:
@@ -1018,34 +336,34 @@ class ChatToolsSettings:
     
     def _refresh_commands_list(self) -> None:
         """Refresh the commands listbox."""
-        self.commands_listbox.delete(0, tk.END)
+        self.commands_tab.commands_listbox.delete(0, tk.END)
         for command in self.commands_list:
             name = command.get("name", "Unnamed")
             status = "✓" if command.get("enabled", True) else "✗"
-            self.commands_listbox.insert(tk.END, f"{status} {name}")
+            self.commands_tab.commands_listbox.insert(tk.END, f"{status} {name}")
     
     def _refresh_messages_list(self) -> None:
         """Refresh the auto messages listbox."""
-        self.messages_listbox.delete(0, tk.END)
+        self.auto_messages_tab.messages_listbox.delete(0, tk.END)
         for message in self.auto_messages_list:
             text = message.get("text", "")
             preview = text[:30] + "..." if len(text) > 30 else text
             status = "✓" if message.get("enabled", True) else "✗"
-            self.messages_listbox.insert(tk.END, f"{status} {preview}")
+            self.auto_messages_tab.messages_listbox.insert(tk.END, f"{status} {preview}")
     
     def _clear_command_editor(self) -> None:
         """Clear the command editor fields."""
-        self.cmd_name_entry.delete(0, tk.END)
-        self.cmd_triggers_entry.delete(0, tk.END)
-        self.cmd_response_text.delete("1.0", tk.END)
-        self.cmd_permission_var.set("everyone")
-        self.cmd_cooldown_var.set(30)
-        self.cmd_enabled_var.set(True)
+        self.commands_tab.cmd_name_entry.delete(0, tk.END)
+        self.commands_tab.cmd_triggers_entry.delete(0, tk.END)
+        self.commands_tab.cmd_response_text.delete("1.0", tk.END)
+        self.commands_tab.cmd_permission_var.set("everyone")
+        self.commands_tab.cmd_cooldown_var.set(30)
+        self.commands_tab.cmd_enabled_var.set(True)
     
     def _clear_message_editor(self) -> None:
         """Clear the message editor fields."""
-        self.msg_text.delete("1.0", tk.END)
-        self.msg_enabled_var.set(True)
+        self.auto_messages_tab.msg_text.delete("1.0", tk.END)
+        self.auto_messages_tab.msg_enabled_var.set(True)
     
     def _load_existing_config(self) -> None:
         """Load existing configuration if available."""
@@ -1057,19 +375,19 @@ class ChatToolsSettings:
                 config = json.load(f)
             
             # Populate connection fields
-            self.username_entry.insert(0, config.get("username", ""))
+            self.connection_tab.username_entry.insert(0, config.get("username", ""))
             
             # OAuth token is readonly, need to enable temporarily
             oauth_token = config.get("oauth_token", "")
             if oauth_token:
-                self.oauth_entry.config(state="normal")
-                self.oauth_entry.insert(0, oauth_token)
-                self.oauth_entry.config(state="readonly")
+                self.connection_tab.oauth_entry.config(state="normal")
+                self.connection_tab.oauth_entry.insert(0, oauth_token)
+                self.connection_tab.oauth_entry.config(state="readonly")
             
-            self.client_id_entry.insert(0, config.get("client_id", ""))
-            self.client_secret_entry.insert(0, config.get("client_secret", ""))
-            self.bot_id_entry.insert(0, config.get("bot_id", ""))
-            self.channel_entry.insert(0, config.get("channel", ""))
+            self.connection_tab.client_id_entry.insert(0, config.get("client_id", ""))
+            self.connection_tab.client_secret_entry.insert(0, config.get("client_secret", ""))
+            self.connection_tab.bot_id_entry.insert(0, config.get("bot_id", ""))
+            self.connection_tab.channel_entry.insert(0, config.get("channel", ""))
             
             # Load commands
             self.commands_list = config.get("commands", [])
@@ -1077,19 +395,19 @@ class ChatToolsSettings:
             
             # Load auto messages
             auto_msg_config = config.get("auto_messages", {})
-            self.auto_msg_master_enabled_var.set(
+            self.auto_messages_tab.auto_msg_master_enabled_var.set(
                 auto_msg_config.get("enabled", True)
             )
-            self.auto_msg_interval_var.set(
+            self.auto_messages_tab.auto_msg_interval_var.set(
                 auto_msg_config.get("post_interval_minutes", 20)
             )
-            self.auto_msg_min_activity_var.set(
+            self.auto_messages_tab.auto_msg_min_activity_var.set(
                 auto_msg_config.get("min_chat_activity", 5)
             )
-            self.auto_msg_activity_window_var.set(
+            self.auto_messages_tab.auto_msg_activity_window_var.set(
                 auto_msg_config.get("activity_window_minutes", 5)
             )
-            self.auto_msg_random_var.set(
+            self.auto_messages_tab.auto_msg_random_var.set(
                 auto_msg_config.get("random_order", True)
             )
             self.auto_messages_list = auto_msg_config.get("messages", [])
@@ -1100,7 +418,7 @@ class ChatToolsSettings:
     
     def start_oauth_flow(self) -> None:
         """Start OAuth2 authorization flow with Twitch."""
-        client_id = self.client_id_entry.get().strip()
+        client_id = self.connection_tab.client_id_entry.get().strip()
         
         if not client_id:
             messagebox.showerror(
@@ -1366,10 +684,10 @@ class ChatToolsSettings:
     
     def _update_oauth_token(self, token: str) -> None:
         """Update OAuth token field in UI."""
-        self.oauth_entry.config(state="normal")
-        self.oauth_entry.delete(0, tk.END)
-        self.oauth_entry.insert(0, token)
-        self.oauth_entry.config(state="readonly")
+        self.connection_tab.oauth_entry.config(state="normal")
+        self.connection_tab.oauth_entry.delete(0, tk.END)
+        self.connection_tab.oauth_entry.insert(0, token)
+        self.connection_tab.oauth_entry.config(state="readonly")
         
         messagebox.showinfo(
             "Authorization Successful",
@@ -1381,12 +699,12 @@ class ChatToolsSettings:
     
     def test_connection(self) -> None:
         """Test connection to Twitch with provided credentials."""
-        username = self.username_entry.get().strip()
-        oauth_token = self.oauth_entry.get().strip()
-        client_id = self.client_id_entry.get().strip()
-        client_secret = self.client_secret_entry.get().strip()
-        bot_id = self.bot_id_entry.get().strip()
-        channel = self.channel_entry.get().strip()
+        username = self.connection_tab.username_entry.get().strip()
+        oauth_token = self.connection_tab.oauth_entry.get().strip()
+        client_id = self.connection_tab.client_id_entry.get().strip()
+        client_secret = self.connection_tab.client_secret_entry.get().strip()
+        bot_id = self.connection_tab.bot_id_entry.get().strip()
+        channel = self.connection_tab.channel_entry.get().strip()
         
         # Basic validation
         if not all([username, oauth_token, client_id, client_secret, bot_id, channel]):
@@ -1560,17 +878,17 @@ class ChatToolsSettings:
     
     def save_settings(self) -> None:
         """Save Twitch configuration to file."""
-        username = self.username_entry.get().strip()
+        username = self.connection_tab.username_entry.get().strip()
         
         # OAuth entry is readonly, need to get value differently
-        self.oauth_entry.config(state="normal")
-        oauth_token = self.oauth_entry.get().strip()
-        self.oauth_entry.config(state="readonly")
+        self.connection_tab.oauth_entry.config(state="normal")
+        oauth_token = self.connection_tab.oauth_entry.get().strip()
+        self.connection_tab.oauth_entry.config(state="readonly")
         
-        client_id = self.client_id_entry.get().strip()
-        client_secret = self.client_secret_entry.get().strip()
-        bot_id = self.bot_id_entry.get().strip()
-        channel = self.channel_entry.get().strip()
+        client_id = self.connection_tab.client_id_entry.get().strip()
+        client_secret = self.connection_tab.client_secret_entry.get().strip()
+        bot_id = self.connection_tab.bot_id_entry.get().strip()
+        channel = self.connection_tab.channel_entry.get().strip()
         
         # Validate connection fields
         if not all([username, oauth_token, client_id, client_secret, bot_id, channel]):
@@ -1595,11 +913,11 @@ class ChatToolsSettings:
             "channel": channel,
             "commands": self.commands_list,
             "auto_messages": {
-                "enabled": self.auto_msg_master_enabled_var.get(),
-                "post_interval_minutes": self.auto_msg_interval_var.get(),
-                "min_chat_activity": self.auto_msg_min_activity_var.get(),
-                "activity_window_minutes": self.auto_msg_activity_window_var.get(),
-                "random_order": self.auto_msg_random_var.get(),
+                "enabled": self.auto_messages_tab.auto_msg_master_enabled_var.get(),
+                "post_interval_minutes": self.auto_messages_tab.auto_msg_interval_var.get(),
+                "min_chat_activity": self.auto_messages_tab.auto_msg_min_activity_var.get(),
+                "activity_window_minutes": self.auto_messages_tab.auto_msg_activity_window_var.get(),
+                "random_order": self.auto_messages_tab.auto_msg_random_var.get(),
                 "messages": self.auto_messages_list
             }
         }
