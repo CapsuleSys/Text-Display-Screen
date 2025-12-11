@@ -209,7 +209,7 @@ class TransitionsTab:
                        value="sequential").grid(row=1, column=1, sticky="w")
         self._bind_widget(colour_mode_frame, "transition.colour_mode_order", str)
         
-        ttk.Label(colour_mode_frame, text="Cycles through: smooth, snap, mixed, spread_horizontal, spread_vertical",
+        ttk.Label(colour_mode_frame, text="Cycles through: smooth, snap, mixed, spread_horizontal, spread_vertical, spread_diagonally_down, spread_diagonally_up",
                  font=("TkDefaultFont", 8)).grid(row=2, column=0, columnspan=2, sticky="w", pady=2)
         
         # 3. GHOST EFFECT TRANSITIONS

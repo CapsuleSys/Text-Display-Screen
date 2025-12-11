@@ -19,13 +19,15 @@ def test_transition_mode_cycling():
         TransitionMode.SNAP, 
         TransitionMode.MIXED,
         TransitionMode.SPREAD_HORIZONTAL,
-        TransitionMode.SPREAD_VERTICAL
+        TransitionMode.SPREAD_VERTICAL,
+        TransitionMode.SPREAD_DIAGONALLY_DOWN,
+        TransitionMode.SPREAD_DIAGONALLY_UP
     ]
     
     print("Testing mode cycling sequence:")
     current_mode = TransitionMode.SMOOTH
     
-    for i in range(6):  # Test one full cycle plus one
+    for i in range(8):  # Test one full cycle plus one
         print(f"Step {i+1}: Current mode = {current_mode.value}")
         
         # Apply the same cycling logic as in screendisplayer.py
@@ -37,7 +39,11 @@ def test_transition_mode_cycling():
             new_mode = TransitionMode.SPREAD_HORIZONTAL
         elif current_mode == TransitionMode.SPREAD_HORIZONTAL:
             new_mode = TransitionMode.SPREAD_VERTICAL
-        else:  # SPREAD_VERTICAL
+        elif current_mode == TransitionMode.SPREAD_VERTICAL:
+            new_mode = TransitionMode.SPREAD_DIAGONALLY_DOWN
+        elif current_mode == TransitionMode.SPREAD_DIAGONALLY_DOWN:
+            new_mode = TransitionMode.SPREAD_DIAGONALLY_UP
+        else:  # SPREAD_DIAGONALLY_UP
             new_mode = TransitionMode.SMOOTH
             
         # Set the mode on the overlay

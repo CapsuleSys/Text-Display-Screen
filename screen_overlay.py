@@ -126,6 +126,10 @@ class ScreenOverlay:
                 logger.info("Horizontal spread mode: colours spread horizontally across screen")
             elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
                 logger.info("Vertical spread mode: colours spread vertically across screen")
+            elif self.colour_transition_mode == TransitionMode.SPREAD_DIAGONALLY_DOWN:
+                logger.info("Diagonal down spread mode: colours spread diagonally from top-left to bottom-right")
+            elif self.colour_transition_mode == TransitionMode.SPREAD_DIAGONALLY_UP:
+                logger.info("Diagonal up spread mode: colours spread diagonally from bottom-left to top-right")
             
             return True
         except Exception as e:
@@ -151,14 +155,18 @@ class ScreenOverlay:
             frame_in_cycle = int(self.colour_time / self.colour_shift_speed) % total_cycle_time
             colour_index = frame_in_cycle // self.snap_duration
             return self.current_colour_scheme[colour_index % scheme_length]
-        elif self.colour_transition_mode in [TransitionMode.SPREAD_HORIZONTAL, TransitionMode.SPREAD_VERTICAL]:
+        elif self.colour_transition_mode in [TransitionMode.SPREAD_HORIZONTAL, TransitionMode.SPREAD_VERTICAL, TransitionMode.SPREAD_DIAGONALLY_DOWN, TransitionMode.SPREAD_DIAGONALLY_UP]:
             # Spread modes: calculate colour based on position (use centre position as default)
             center_row = self.grid_height // 2
             center_col = self.grid_width // 2
             if self.colour_transition_mode == TransitionMode.SPREAD_HORIZONTAL:
                 return self._get_horizontal_spread_colour(center_row, center_col)
-            else:
+            elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
                 return self._get_vertical_spread_colour(center_row, center_col)
+            elif self.colour_transition_mode == TransitionMode.SPREAD_DIAGONALLY_DOWN:
+                return self._get_diagonal_down_spread_colour(center_row, center_col)
+            else:
+                return self._get_diagonal_up_spread_colour(center_row, center_col)
         else:
             # Smooth mode: smoothly transition between colours
             colour_position = (math.sin(self.colour_time) + 1) / 2  # 0 to 1
@@ -236,6 +244,100 @@ class ScreenOverlay:
         # Map the ratio to colour scheme
         scheme_length = len(self.current_colour_scheme)
         colour_position = vertical_ratio * (scheme_length - 1)
+        
+        # Get the two adjacent colours to interpolate between
+        lower_index = int(colour_position)
+        upper_index = min(lower_index + 1, scheme_length - 1)
+        blend_factor = colour_position - lower_index
+        
+        # Interpolate between the two colours
+        colour1 = self.current_colour_scheme[lower_index]
+        colour2 = self.current_colour_scheme[upper_index]
+        
+        r = int(colour1[0] * (1 - blend_factor) + colour2[0] * blend_factor)
+        g = int(colour1[1] * (1 - blend_factor) + colour2[1] * blend_factor)
+        b = int(colour1[2] * (1 - blend_factor) + colour2[2] * blend_factor)
+        
+        return (r, g, b)
+    
+    def _get_diagonal_down_spread_colour(self, row: int, col: int) -> Tuple[int, int, int]:
+        """Get colour based on diagonal position for diagonal down spread mode.
+        
+        Top-left corner (0, 0) gets the first colour (index 0).
+        Bottom-right corner (max_row, max_col) gets the last colour.
+        """
+        if not self.current_colour_scheme or len(self.current_colour_scheme) < 2:
+            return self.current_colour_scheme[0] if self.current_colour_scheme else (255, 0, 0)
+        
+        # Calculate diagonal position ratio based on text boundaries
+        text_width = self.text_bounds['max_col'] - self.text_bounds['min_col']
+        text_height = self.text_bounds['max_row'] - self.text_bounds['min_row']
+        
+        if text_width <= 0 or text_height <= 0:
+            diagonal_ratio = 0.0
+        else:
+            # Clamp position to text boundaries
+            clamped_row = max(self.text_bounds['min_row'], min(self.text_bounds['max_row'], row))
+            clamped_col = max(self.text_bounds['min_col'], min(self.text_bounds['max_col'], col))
+            
+            # Normalise to 0-1 range within text bounds
+            row_ratio = (clamped_row - self.text_bounds['min_row']) / text_height
+            col_ratio = (clamped_col - self.text_bounds['min_col']) / text_width
+            
+            # Diagonal ratio: average of row and column ratios
+            # Top-left (0, 0) gives 0.0, bottom-right (1, 1) gives 1.0
+            diagonal_ratio = (row_ratio + col_ratio) / 2.0
+        
+        # Map the ratio to colour scheme
+        scheme_length = len(self.current_colour_scheme)
+        colour_position = diagonal_ratio * (scheme_length - 1)
+        
+        # Get the two adjacent colours to interpolate between
+        lower_index = int(colour_position)
+        upper_index = min(lower_index + 1, scheme_length - 1)
+        blend_factor = colour_position - lower_index
+        
+        # Interpolate between the two colours
+        colour1 = self.current_colour_scheme[lower_index]
+        colour2 = self.current_colour_scheme[upper_index]
+        
+        r = int(colour1[0] * (1 - blend_factor) + colour2[0] * blend_factor)
+        g = int(colour1[1] * (1 - blend_factor) + colour2[1] * blend_factor)
+        b = int(colour1[2] * (1 - blend_factor) + colour2[2] * blend_factor)
+        
+        return (r, g, b)
+    
+    def _get_diagonal_up_spread_colour(self, row: int, col: int) -> Tuple[int, int, int]:
+        """Get colour based on diagonal position for diagonal up spread mode.
+        
+        Bottom-left corner (max_row, 0) gets the first colour (index 0).
+        Top-right corner (0, max_col) gets the last colour.
+        """
+        if not self.current_colour_scheme or len(self.current_colour_scheme) < 2:
+            return self.current_colour_scheme[0] if self.current_colour_scheme else (255, 0, 0)
+        
+        # Calculate diagonal position ratio based on text boundaries
+        text_width = self.text_bounds['max_col'] - self.text_bounds['min_col']
+        text_height = self.text_bounds['max_row'] - self.text_bounds['min_row']
+        
+        if text_width <= 0 or text_height <= 0:
+            diagonal_ratio = 0.0
+        else:
+            # Clamp position to text boundaries
+            clamped_row = max(self.text_bounds['min_row'], min(self.text_bounds['max_row'], row))
+            clamped_col = max(self.text_bounds['min_col'], min(self.text_bounds['max_col'], col))
+            
+            # Normalise to 0-1 range within text bounds
+            row_ratio = (clamped_row - self.text_bounds['min_row']) / text_height
+            col_ratio = (clamped_col - self.text_bounds['min_col']) / text_width
+            
+            # Diagonal ratio: inverted row + column ratio
+            # Bottom-left (1, 0) gives 0.0, top-right (0, 1) gives 1.0
+            diagonal_ratio = ((1.0 - row_ratio) + col_ratio) / 2.0
+        
+        # Map the ratio to colour scheme
+        scheme_length = len(self.current_colour_scheme)
+        colour_position = diagonal_ratio * (scheme_length - 1)
         
         # Get the two adjacent colours to interpolate between
         lower_index = int(colour_position)
@@ -420,6 +522,12 @@ class ScreenOverlay:
                             elif self.colour_transition_mode == TransitionMode.SPREAD_VERTICAL:
                                 # In vertical spread mode, use vertical position-based colour
                                 ghost_colour = self._get_vertical_spread_colour(ghost_row, ghost_col)
+                            elif self.colour_transition_mode == TransitionMode.SPREAD_DIAGONALLY_DOWN:
+                                # In diagonal down spread mode, use diagonal position-based colour
+                                ghost_colour = self._get_diagonal_down_spread_colour(ghost_row, ghost_col)
+                            elif self.colour_transition_mode == TransitionMode.SPREAD_DIAGONALLY_UP:
+                                # In diagonal up spread mode, use diagonal position-based colour
+                                ghost_colour = self._get_diagonal_up_spread_colour(ghost_row, ghost_col)
                             else:
                                 # In smooth/snap modes, use the current cycling colour
                                 ghost_colour = current_colour

@@ -1,1 +1,1 @@
-TextInputFiles\webcam_background.txt
+TextInputFiles\fullscreen.txt

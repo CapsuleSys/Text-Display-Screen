@@ -356,7 +356,11 @@ class ScreenDisplayer:
                         new_mode = TransitionMode.SPREAD_HORIZONTAL
                     elif current_mode == TransitionMode.SPREAD_HORIZONTAL:
                         new_mode = TransitionMode.SPREAD_VERTICAL
-                    else:  # SPREAD_VERTICAL
+                    elif current_mode == TransitionMode.SPREAD_VERTICAL:
+                        new_mode = TransitionMode.SPREAD_DIAGONALLY_DOWN
+                    elif current_mode == TransitionMode.SPREAD_DIAGONALLY_DOWN:
+                        new_mode = TransitionMode.SPREAD_DIAGONALLY_UP
+                    else:  # SPREAD_DIAGONALLY_UP
                         new_mode = TransitionMode.SMOOTH
                     
                     self.set_colour_transition_mode(new_mode)

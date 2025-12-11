@@ -81,6 +81,8 @@ class TransitionMode(Enum):
     MIXED = "mixed"                # Random colours from scheme
     SPREAD_HORIZONTAL = "spread_horizontal"  # Horizontal colour gradient
     SPREAD_VERTICAL = "spread_vertical"      # Vertical colour gradient
+    SPREAD_DIAGONALLY_DOWN = "spread_diagonally_down"  # Diagonal gradient top-left to bottom-right
+    SPREAD_DIAGONALLY_UP = "spread_diagonally_up"      # Diagonal gradient bottom-left to top-right
     
     @classmethod
     def list_names(cls) -> List[str]:
